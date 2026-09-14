@@ -177,27 +177,19 @@ Memverifikasi perilaku responsif menggunakan `flutter test`
 
 ## 6. Refleksi
 
-### Apa perbedaan utama antara pendekatan declarative dan imperative dalam membangun UI?
+### Apa perbedaan cara berpikir imperative dan declarative saat membangun UI?
 
-> Dalam pendekatan **imperative**, developer secara eksplisit memanipulasi objek UI (misal: `view.setText("...")`). Dalam **declarative** (Flutter), kita cukup mendeskripsikan UI harus seperti ini untuk state tertentu, dan framework yang menangani rebuild secara otomatis. Ini membuat kode lebih singkat, lebih mudah di-predict, dan minim bug terkait sinkronisasi state.
+> Dalam pendekatan **imperative**, developer mengontrol UI secara langkah demi langkah — misal: `button.setText("Submit")`, lalu `button.setColor(blue)` saat state berubah. Developer harus melacak status UI secara manual. Dalam **declarative** (Flutter), cukup mendeskripsikan "UI harus seperti ini untuk state begini" — Flutter yang menangani rebuild otomatis. Contoh nyata: mengubah `isDark = true` langsung mengubah seluruh palet warna aplikasi tanpa perlu memanggil `setColor()` pada setiap widget. Cara berpikir ini menggeser fokus dari "bagaimana mengubah UI" menjadi "bagaimana UI seharusnya terlihat pada kondisi tertentu".
 
-### Bagaimana LayoutBuilder membantu dalam membuat UI yang responsif?
+### Kapan `Expanded` membantu dan kapan penggunaannya justru menghasilkan layout error?
 
-> `LayoutBuilder` memberikan `BoxConstraints` ke builder function, sehingga kita bisa mengetahui lebar/tinggi layar secara real-time dan mengambil keputusan desain secara dinamis — misal: 1 kolom di phone, 2 kolom di tablet — tanpa hardcode breakpoint. Ini sangat berganti ketika tidak ingin bergantung pada `MediaQuery` yang mengembalikan ukuran seluruh layar.
+> `Expanded` sangat membantu saat ingin membagi ruang secara proporsional dalam `Row` atau `Column` — misal teks judul mengambil sisa ruang setelah ikon, atau dua kartu berbagi lebar layar secara merata (50:50). Namun, `Expanded` menjadi masalah saat konten di dalamnya memiliki **lebar minimum** yang melebihi sisa ruang yang tersedia — ini memicu **overflow** (yellow/black striped warning). Misal: dua `Expanded` masing-masing berisi `Text` dengan teks sangat panjang tanpa batasan. Solusinya: batasi panjang teks dengan `maxLines` + `overflow: TextOverflow.ellipsis`, atau gunakan `Flexible` (yang bisa mengecil daripada memaksa overflow). Intinya: `Expanded` membantu saat ada ruang untuk dibagi, tetapi error saat konten menuntut lebih dari yang tersedia.
 
-### Mengapa pemilihan widget (StatelessWidget vs StatefulWidget) menjadi pertimbangan penting?
+### Bagaimana breakpoint dan theme memengaruhi pengalaman pengguna?
 
-> `StatefulWidget` diperlukan saat ada state yang berubah dari waktu ke waktu (misal: nilai toggle tema). `StatelessWidget` cukup untuk komponen yang murni menerima data dari parent dan menampilkannya tanpa mengelola state sendiri. Pemilihan yang tepat menjaga widget tree tetap efisien — state hanya disimpan di widget yang benar-benar membutuhkannya, sehingga rebuild lebih terarah dan performa lebih baik.
+> **Breakpoint** menentukan bagaimana layout beradaptasi dengan ukuran layar. Pada proyek ini, breakpoint 600px memisahkan tampilan phone (1 kolom, kartu vertikal) dari tablet (2 kolom, kartu berdampingan). Tanpa breakpoint, layout mungkin terlalu sempit di tablet atau terlalu renggang di phone. **Theme** (light/dark) memengaruhi kenyamanan visual — dark mode mengurangi kelelahan mata di lingkungan gelap, light mode lebih mudah dibaca di bawah sinar matahari. Keduanya bersama-sama memastikan aplikasi tetap fungsional dan nyaman di berbagai kondisi: layar kecil maupun besar, terang maupun gelap.
 
-### Bagaimana tema dan dark mode meningkatkan pengalaman pengguna secara keseluruhan?
+### Apa yang Anda verifikasi dari rekomendasi AI setelah tugas inti selesai?
 
-> Dark mode mengurangi kelelahan mata di lingkungan gelap dan menghemat baterai pada layar OLED. Dengan `ThemeData` dan `Switch.adaptive`, transisi antar tema terasa mulus dan konsisten di seluruh komponen. Pengguna merasa lebih nyaman karena aplikasi menyesuaikan dengan preferensi sistem atau preferensi manual mereka.
-
-### Apa tantangan dalam menerapkan aksesibilitas pada aplikasi Flutter?
-
-> Tantangan utamanya adalah memastikan **setiap** elemen interaktif dan informatif memiliki label `Semantics` yang deskriptif. Tanpa label, screen reader hanya membaca teks mentah yang mungkin tidak bermakna dalam konteks. Selain itu, pengujian aksesibilitas perlu dilakukan di perangkat nyata dengan TalkBack/VoiceOver aktif, karena simulasi di emulator tidak selalu merepresentasikan pengalaman pengguna tunanetra secara akurat.
-
-### Bagaimana penggunaan Row, Column, dan Expanded membantu dalam menyusun layout yang fleksibel?
-
-> Kombinasi `Row` (horizontal), `Column` (vertical), dan `Expanded` (mengambil sisa ruang yang tersedia) memungkinkan pembangunan layout yang proporsional tanpa hardcode ukuran pixel. `Expanded` memastikan anak widget mengisi ruang kosong secara merata, sehingga layout tetap proporsional di berbagai ukuran layar. Ini adalah fondasi dari layout responsif di Flutter.
+> Tiga hal diverifikasi setelah menerima rekomendasi AI: **(1)** Seluruh widget yang disarankan (`LayoutBuilder`, `SliverGrid`, `Semantics`, `Switch.adaptive`) benar-benar tersedia di Flutter stabil — tidak ada widget experimental atau deprecated. **(2)** Breakpoint 600px berfungsi dengan benar di kedua arah — di bawah 600px menampilkan 1 kolom, di atas menampilkan 2 kolom — diverifikasi dengan mengubah ukuran emulator secara manual. **(3)** Aksesibilitas tidak menurun — `Semantics` labels tetap aktif dan terbaca oleh TalkBack di kedua mode layout. Verifikasi ini penting karena AI kadang merekomendasikan widget yang belum stabil atau asumsi yang tidak sesuai dengan kode nyata.
 
