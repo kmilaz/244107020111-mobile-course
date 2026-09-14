@@ -47,7 +47,7 @@ class DashboardPage extends StatelessWidget {
             children: [
               Icon(isDark ? Icons.dark_mode : Icons.light_mode),
               const SizedBox(width: 4),
-              CupertinoSwitch(
+              Switch.adaptive(
                 value: isDark,
                 onChanged: onDarkChanged,
               ),
