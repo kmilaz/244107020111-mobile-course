@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+const double kWideBreakpoint = 700;
 
 void main() => runApp(const AcademicApp());
 
@@ -40,19 +41,14 @@ class AcademicOverviewPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isDark
-        ? CupertinoColors.black
-        : CupertinoColors.systemGroupedBackground;
-
     return CupertinoPageScaffold(
       navigationBar: const CupertinoNavigationBar(
         middle: Text('Academic Overview'),
       ),
-      backgroundColor: bg,
       child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 600;
+            final isWide = constraints.maxWidth >= kWideBreakpoint;
             final cells = <Widget>[
               ThemeToggleCard(
                 isDark: isDark,
@@ -84,7 +80,7 @@ class AcademicOverviewPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _ProfileHeader(isDark: isDark),
+                  const _ProfileHeader(),
                   const SizedBox(height: 12),
                   if (isWide)
                     Column(
@@ -134,44 +130,50 @@ class AcademicOverviewPage extends StatelessWidget {
   }
 }
 
-class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.isDark});
+class _Card extends StatelessWidget {
+  const _Card({required this.child});
 
-  final bool isDark;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final cardColor = isDark
-        ? CupertinoColors.systemGrey6.darkColor
-        : CupertinoColors.white;
-    final subColor = isDark
-        ? CupertinoColors.systemGrey
-        : CupertinoColors.systemGrey.darkColor;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemBackground.resolveFrom(context),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = CupertinoTheme.of(context);
+    final secondary =
+        CupertinoColors.secondaryLabel.resolveFrom(context);
 
     return Semantics(
       label: 'Student profile: Kamila Zahwa, Teknik Informatika, Semester 5',
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-        ),
+      child: _Card(
         child: Row(
           children: [
             Container(
               width: 56,
               height: 56,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: CupertinoColors.activeBlue,
+                color: theme.primaryColor,
               ),
               alignment: Alignment.center,
-              child: const Text(
+              child: Text(
                 'KA',
-                style: TextStyle(
+                style: theme.textTheme.navTitleTextStyle.copyWith(
                   color: CupertinoColors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -180,22 +182,21 @@ class _ProfileHeader extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Kamila Zahwa',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: theme.textTheme.navTitleTextStyle,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Teknik Informatika • Semester 5',
-                    style: TextStyle(fontSize: 13, color: subColor),
+                    style: theme.textTheme.textStyle
+                        .copyWith(color: secondary),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'NIM 244107020111',
-                    style: TextStyle(fontSize: 13, color: subColor),
+                    style: theme.textTheme.textStyle
+                        .copyWith(color: secondary),
                   ),
                 ],
               ),
@@ -207,35 +208,30 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-
 class InfoCard extends StatelessWidget {
   const InfoCard({
     required this.title,
     required this.value,
     required this.icon,
+    this.trailing,
     super.key,
   });
 
   final String title;
   final String value;
   final IconData icon;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    final isDark =
-        CupertinoTheme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark
-        ? CupertinoColors.systemGrey6.darkColor
-        : CupertinoColors.white;
+    final theme = CupertinoTheme.of(context);
+    final secondary =
+        CupertinoColors.secondaryLabel.resolveFrom(context);
+    final trailing = this.trailing;
 
     return Semantics(
       label: '$title: $value',
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-        ),
+      child: _Card(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -244,23 +240,24 @@ class InfoCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(fontSize: 14),
+                    style: theme.textTheme.tabLabelTextStyle
+                        .copyWith(color: secondary),
                   ),
                 ),
-                Icon(
-                  icon,
-                  size: 20,
-                  color: CupertinoColors.systemGrey.resolveFrom(context),
-                ),
+                Icon(icon, color: secondary),
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value,
+                    style: theme.textTheme.navLargeTitleTextStyle,
+                  ),
+                ),
+                ?trailing,
+              ],
             ),
           ],
         ),
@@ -281,65 +278,18 @@ class ThemeToggleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardColor = isDark
-        ? CupertinoColors.systemGrey6.darkColor
-        : CupertinoColors.white;
-
-    return Semantics(
-      label: isDark ? 'Dark mode enabled' : 'Light mode enabled',
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Appearance',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ),
-                Icon(
-                  isDark
-                      ? CupertinoIcons.moon_fill
-                      : CupertinoIcons.sun_max_fill,
-                  size: 20,
-                  color: isDark
-                      ? CupertinoColors.white
-                      : CupertinoColors.systemOrange,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    isDark ? 'Dark' : 'Light',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Semantics(
-                  label: isDark
-                      ? 'Switch to light mode'
-                      : 'Switch to dark mode',
-                  button: true,
-                  child: CupertinoSwitch(
-                    value: isDark,
-                    onChanged: onDarkChanged,
-                  ),
-                ),
-              ],
-            ),
-          ],
+    return InfoCard(
+      title: 'Appearance',
+      value: isDark ? 'Dark' : 'Light',
+      icon: isDark
+          ? CupertinoIcons.moon_fill
+          : CupertinoIcons.sun_max_fill,
+      trailing: Semantics(
+        label: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+        button: true,
+        child: CupertinoSwitch(
+          value: isDark,
+          onChanged: onDarkChanged,
         ),
       ),
     );
