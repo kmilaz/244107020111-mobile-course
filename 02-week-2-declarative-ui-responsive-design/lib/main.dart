@@ -43,16 +43,19 @@ class DashboardPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Student Dashboard'),
         actions: [
-          Row(
-            children: [
-              Icon(isDark ? Icons.dark_mode : Icons.light_mode),
-              const SizedBox(width: 4),
-              Switch.adaptive(
-                value: isDark,
-                onChanged: onDarkChanged,
-              ),
-              const SizedBox(width: 12),
-            ],
+          Semantics(
+            label: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+            child: Row(
+              children: [
+                Icon(isDark ? Icons.dark_mode : Icons.light_mode),
+                const SizedBox(width: 4),
+                Switch.adaptive(
+                  value: isDark,
+                  onChanged: onDarkChanged,
+                ),
+                const SizedBox(width: 12),
+              ],
+            ),
           ),
         ],
       ),
@@ -85,13 +88,16 @@ class DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(children: [
-          Expanded(child: Text(title)),
-          Text(value, style: Theme.of(context).textTheme.headlineSmall),
-        ]),
+    return Semantics(
+      label: '$title: $value',
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(children: [
+            Expanded(child: Text(title)),
+            Text(value, style: Theme.of(context).textTheme.headlineSmall),
+          ]),
+        ),
       ),
     );
   }
