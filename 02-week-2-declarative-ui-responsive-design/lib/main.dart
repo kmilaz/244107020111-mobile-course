@@ -58,7 +58,7 @@ class DashboardPage extends StatelessWidget {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 700 ? 2 : 1;
+          final columns = constraints.maxWidth >= 200 ? 2 : 1;
           return GridView.count(
             padding: const EdgeInsets.all(16),
             crossAxisCount: columns,
