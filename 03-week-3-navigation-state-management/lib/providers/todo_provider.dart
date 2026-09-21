@@ -28,6 +28,7 @@ class TodoStatsNotifier extends AsyncNotifier<Map<String, int>> {
   @override
 Future<Map<String, int>> build() async {
   await Future.delayed(const Duration(seconds: 2));
+  throw Exception('Gagal terhubung ke server'); 
 
   final todos = ref.watch(todoListProvider);
   final total = todos.length;
