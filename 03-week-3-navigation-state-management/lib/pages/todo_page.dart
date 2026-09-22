@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/todo_provider.dart';
+import 'todo_tile.dart';
 
 // ============================================================
 // TodoPage — ConsumerWidget utama untuk daftar tugas.
 //
-// Menggunakan ref.watch(todoListProvider) untuk membangun ulang
-// widget saat daftar todo berubah (state management Riverpod).
+// Refactoring: menggunakan TodoTile (widget terpisah) dan
+// filteredTodoProvider (logika filter terpisah dari UI).
 // ============================================================
 
 class TodoPage extends ConsumerWidget {
@@ -17,32 +18,33 @@ class TodoPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // ref.watch → berlangganan, otomatis rebuild saat todoListProvider berubah
     final todos = ref.watch(todoListProvider);
+    // Derived provider → hanya todo yang belum selesai
+    final remaining = ref.watch(filteredTodoProvider).length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ToDo Riverpod')),
+      appBar: AppBar(
+        title: const Text('ToDo Riverpod'),
+        // Tampilkan jumlah tugas yang belum selesai
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Text(
+                '$remaining tugas',
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: todos.isEmpty
           ? const Center(child: Text('Belum ada tugas'))
           : ListView.builder(
               itemCount: todos.length,
-              itemBuilder: (context, index) => ListTile(
-                leading: Checkbox(
-                  value: todos[index].done,
-                  // ref.read → sekali baca di callback (bukan di build)
-                  onChanged: (_) =>
-                      ref.read(todoListProvider.notifier).toggle(index),
-                ),
-                title: Text(
-                  todos[index].title,
-                  style: TextStyle(
-                      decoration: todos[index].done
-                          ? TextDecoration.lineThrough
-                          : null),
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () =>
-                      ref.read(todoListProvider.notifier).remove(index),
-                ),
+              // Refactoring: gunakan TodoTile (widget terpisah)
+              itemBuilder: (context, index) => TodoTile(
+                index: index,
+                todo: todos[index],
               ),
             ),
       floatingActionButton: FloatingActionButton(
@@ -71,8 +73,6 @@ class TodoPage extends ConsumerWidget {
   }
 
   /// Dialog untuk menambah todo baru.
-  /// Menggunakan Navigator.pop() untuk menutup dialog
-  /// dan ref.read(todoListProvider.notifier).add() untuk menambah data.
   void _showAddDialog(BuildContext context, WidgetRef ref) {
     final controller = TextEditingController();
     showDialog(
