@@ -14,28 +14,33 @@ import 'pages/stats_page.dart';
 // - context.push() → tumpuk route baru di atas stack
 // ============================================================
 
-final _router = GoRouter(
-  initialLocation: '/',
-  routes: [
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const TodoPage(),
-    ),
-    GoRoute(
-      path: '/stats',
-      builder: (context, state) => const StatsPage(),
-    ),
-  ],
-);
-
 void main() => runApp(const ProviderScope(child: MyApp()));
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
-  Widget build(BuildContext context) => MaterialApp.router(
-        title: 'Week 3 - ToDo',
-        theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
-        routerConfig: _router,
-      );
+  Widget build(BuildContext context) {
+    // Router dibuat di dalam build() agar setiap widget tree
+    // (termasuk test) mendapatkan instance router yang fresh.
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const TodoPage(),
+        ),
+        GoRoute(
+          path: '/stats',
+          builder: (context, state) => const StatsPage(),
+        ),
+      ],
+    );
+
+    return MaterialApp.router(
+      title: 'Week 3 - ToDo',
+      theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
+      routerConfig: router,
+    );
+  }
 }
