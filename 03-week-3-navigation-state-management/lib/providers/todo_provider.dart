@@ -46,3 +46,21 @@ class TodoListNotifier extends Notifier<List<Todo>> {
 /// Deklarasi provider — digunakan oleh UI dan provider lain.
 final todoListProvider =
     NotifierProvider<TodoListNotifier, List<Todo>>(TodoListNotifier.new);
+
+// ============================================================
+// FilteredTodoProvider — Provider turunan (derived provider).
+//
+// Concept:
+// - Provider yang membaca provider lain (todoListProvider)
+// - Menggunakan `ref.watch` agar otomatis rebuild saat data berubah
+// - Memisahkan logika filter dari UI (separation of concerns)
+// ============================================================
+
+/// Provider untuk menampilkan hanya todo yang belum selesai.
+/// Berguna untuk halaman statistik atau filter aktivitas.
+final filteredTodoProvider = Provider<List<Todo>>((ref) {
+  // ref.watch → berlangganan, rebuild saat todoListProvider berubah
+  final todos = ref.watch(todoListProvider);
+  // Filter: hanya todo yang done = false
+  return todos.where((todo) => !todo.done).toList();
+});
