@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../providers/todo_provider.dart';
 import 'todo_tile.dart';
 
@@ -50,24 +49,6 @@ class TodoPage extends ConsumerWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddDialog(context, ref),
         child: const Icon(Icons.add),
-      ),
-
-      // Bottom Navigation — pindah ke halaman Stats
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0, // 0 = Todo, 1 = Stats
-        onDestinationSelected: (index) {
-          if (index == 1) context.go('/stats');
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.list_alt),
-            label: 'Tugas',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart),
-            label: 'Statistik',
-          ),
-        ],
       ),
     );
   }

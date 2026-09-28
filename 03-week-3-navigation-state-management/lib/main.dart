@@ -3,15 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'pages/todo_page.dart';
 import 'pages/stats_page.dart';
+import 'pages/shell_screen.dart';
 
 // ============================================================
 // GoRouter — router deklaratif untuk navigasi multi-page.
 //
-// Concept:
-// - MaterialApp.router → menggantikan MaterialApp biasa
-// - GoRoute → definisi path dan widget tujuan
-// - context.go() → pindah route (ganti stack)
-// - context.push() → tumpuk route baru di atas stack
+// Menggunakan ShellRoute agar NavigationBar tetap tampil
+// di semua halaman (shared bottom nav).
 // ============================================================
 
 void main() => runApp(const ProviderScope(child: MyApp()));
@@ -21,18 +19,22 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Router dibuat di dalam build() agar setiap widget tree
-    // (termasuk test) mendapatkan instance router yang fresh.
     final router = GoRouter(
       initialLocation: '/',
       routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const TodoPage(),
-        ),
-        GoRoute(
-          path: '/stats',
-          builder: (context, state) => const StatsPage(),
+        // ShellRoute → membungkus halaman dengan NavigationBar bersama
+        ShellRoute(
+          builder: (context, state, child) => ShellScreen(child: child),
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) => const TodoPage(),
+            ),
+            GoRoute(
+              path: '/stats',
+              builder: (context, state) => const StatsPage(),
+            ),
+          ],
         ),
       ],
     );
