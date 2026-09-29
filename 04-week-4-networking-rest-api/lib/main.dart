@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'pages/post_list_page.dart';
 
-void main() {
-  runApp(const MainApp());
-}
+void main() => runApp(const ProviderScope(child: MyApp()));
 
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
-
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
   @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(body: Center(child: Text('Hello World!'))),
-    );
-  }
+  Widget build(BuildContext context) => MaterialApp(
+        title: 'Week 4 - REST API',
+        theme: ThemeData(
+            colorSchemeSeed: Colors.indigo, useMaterial3: true),
+        home: const PostListPage(),
+      );
 }
