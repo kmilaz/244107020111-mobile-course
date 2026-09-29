@@ -17,7 +17,7 @@ import 'data/models/post.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/paged',
     routes: [
       // Halaman daftar post (tanpa pagination)
       GoRoute(
