@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'local/note.dart';
 import 'models/post.dart';
 import 'prefs.dart';
@@ -17,8 +18,9 @@ final postRepositoryProvider = Provider<PostRepository>(
   (ref) => PostRepository(),
 );
 
-final darkModeProvider =
-    AsyncNotifierProvider<DarkModeNotifier, bool>(DarkModeNotifier.new);
+final darkModeProvider = AsyncNotifierProvider<DarkModeNotifier, bool>(
+  DarkModeNotifier.new,
+);
 
 class DarkModeNotifier extends AsyncNotifier<bool> {
   @override
@@ -38,8 +40,9 @@ final lastOpenedProvider = FutureProvider<String?>(
   (ref) => ref.watch(prefsRepositoryProvider).getLastOpened(),
 );
 
-final forceOfflineProvider =
-    NotifierProvider<ForceOfflineNotifier, bool>(ForceOfflineNotifier.new);
+final forceOfflineProvider = NotifierProvider<ForceOfflineNotifier, bool>(
+  ForceOfflineNotifier.new,
+);
 
 class ForceOfflineNotifier extends Notifier<bool> {
   @override
@@ -48,8 +51,9 @@ class ForceOfflineNotifier extends Notifier<bool> {
   void set(bool value) => state = value;
 }
 
-final notesProvider =
-    AsyncNotifierProvider<NotesNotifier, List<Note>>(NotesNotifier.new);
+final notesProvider = AsyncNotifierProvider<NotesNotifier, List<Note>>(
+  NotesNotifier.new,
+);
 
 class NotesNotifier extends AsyncNotifier<List<Note>> {
   NoteRepository get _repo => ref.read(noteRepositoryProvider);
@@ -76,7 +80,7 @@ class NotesNotifier extends AsyncNotifier<List<Note>> {
 }
 
 final dirtyCountProvider = FutureProvider<int>((ref) {
-  ref.watch(notesProvider); 
+  ref.watch(notesProvider);
   return ref.watch(noteRepositoryProvider).countDirty();
 });
 
@@ -114,7 +118,9 @@ class PostsState {
   }
 }
 
-final postsProvider = NotifierProvider<PostsNotifier, PostsState>(PostsNotifier.new);
+final postsProvider = NotifierProvider<PostsNotifier, PostsState>(
+  PostsNotifier.new,
+);
 
 class PostsNotifier extends Notifier<PostsState> {
   @override
@@ -136,7 +142,7 @@ class PostsNotifier extends Notifier<PostsState> {
       isLoading: !forceOffline,
     );
 
-    if (forceOffline) return; 
+    if (forceOffline) return;
 
     try {
       final fresh = await repo.fetchPosts();

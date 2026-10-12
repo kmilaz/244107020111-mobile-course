@@ -8,8 +8,8 @@ class Post {
   Map<String, dynamic> toJson() => {'id': id, 'title': title, 'body': body};
 
   factory Post.fromJson(Map<String, dynamic> json) => Post(
-        id: (json['id'] as num?)?.toInt() ?? 0,
-        title: json['title'] as String? ?? '',
-        body: json['body'] as String? ?? '',
-      );
+    id: (json['id'] as num?)?.toInt() ?? 0,
+    title: json['title'] as String? ?? '',
+    body: json['body'] as String? ?? '',
+  );
 }
