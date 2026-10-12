@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/prefs.dart';
 import 'data/providers.dart';
-import 'pages/notes_page.dart';
+import 'router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,13 +20,14 @@ class MainApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final darkMode = ref.watch(darkModeProvider).value ?? false;
 
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Offline Notes',
       theme: ThemeData(
         colorSchemeSeed: Colors.deepPurple,
         brightness: darkMode ? Brightness.dark : Brightness.light,
       ),
-      home: const NotesPage(),
+      // Navigasi diserahkan ke GoRouter (routerProvider), bukan ke `home:`.
+      routerConfig: ref.watch(routerProvider),
     );
   }
 }

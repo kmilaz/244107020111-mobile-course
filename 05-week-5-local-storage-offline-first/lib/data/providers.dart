@@ -80,6 +80,11 @@ class NotesNotifier extends AsyncNotifier<List<Note>> {
     ref.invalidateSelf();
   }
 
+  Future<void> updateNote(Note note) async {
+    await _repo.updateNote(note);
+    ref.invalidateSelf();
+  }
+
   Future<void> remove(int id) async {
     await _repo.deleteNote(id);
     ref.invalidateSelf();
@@ -98,6 +103,14 @@ final dirtyCountProvider = FutureProvider<int>((ref) {
   ref.watch(notesProvider); // hitung ulang setiap daftar berubah
   return ref.watch(noteRepositoryProvider).countDirty();
 });
+
+/// Satu catatan berdasarkan id — dipakai halaman detail.
+///
+/// Membaca dari repository, bukan dari state daftar, supaya deep link
+/// `/note/:id` tetap bekerja tanpa halaman daftar pernah dibuka.
+final noteByIdProvider = FutureProvider.family<Note?, int>(
+  (ref, id) => ref.watch(noteRepositoryProvider).getNote(id),
+);
 
 // -------------------------------------------------------------- posts (BACA)
 
@@ -177,6 +190,7 @@ class PostsNotifier extends Notifier<PostsState> {
         lastCachedAt: DateTime.now(),
       );
     } catch (error) {
+      // Gagal jaringan bukan alasan menghapus data yang sudah tampil.
       state = state.copyWith(isLoading: false, error: '$error');
     }
   }

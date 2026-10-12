@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../data/providers.dart';
 import '../widgets/note_tile.dart';
-import 'settings_page.dart';
 
 class NotesPage extends ConsumerWidget {
   const NotesPage({super.key});
@@ -28,10 +28,7 @@ class NotesPage extends ConsumerWidget {
           IconButton(
             tooltip: 'Pengaturan',
             icon: const Icon(Icons.settings),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsPage()),
-            ),
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -61,6 +58,9 @@ class NotesPage extends ConsumerWidget {
                         final id = note.id;
                         return NoteTile(
                           note: note,
+                          onTap: id == null
+                              ? null
+                              : () => context.push('/note/$id'),
                           onDelete: id == null
                               ? null
                               : () =>
@@ -133,6 +133,8 @@ class NotesPage extends ConsumerWidget {
   }
 
   Future<void> _addNote(BuildContext context, WidgetRef ref) async {
+    // `title` hidup di scope METHOD, bukan di dalam build(): kalau ditaruh di
+    // dalam, keyboard yang muncul akan me-rebuild dialog dan mengosongkannya.
     var title = '';
 
     final result = await showDialog<String>(

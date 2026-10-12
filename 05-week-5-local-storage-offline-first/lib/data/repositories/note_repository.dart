@@ -67,4 +67,41 @@ class NoteRepository {
     final db = await _openDb();
     await db.update('notes', {'dirty': 0}, where: 'id = ?', whereArgs: [id]);
   }
+
+  /// Satu catatan berdasarkan id, atau null bila tidak ada.
+  /// "Tidak ada" adalah keadaan yang sah, bukan error.
+  Future<Note?> getNote(int id) async {
+    final db = await _openDb();
+    final rows = await db.query(
+      'notes',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return Note.fromMap(rows.first);
+  }
+
+  Future<void> updateNote(Note note) async {
+    final id = note.id;
+    if (id == null) {
+      // Tanpa guard ini, `WHERE id = null` tidak cocok dengan baris mana pun
+      // dan update gagal DIAM-DIAM. Lebih baik gagal keras.
+      throw ArgumentError(
+        'updateNote butuh note yang sudah tersimpan (id != null)',
+      );
+    }
+    final db = await _openDb();
+    await db.update(
+      'notes',
+      {
+        'title': note.title,
+        'body': note.body,
+        'updated_at': note.updatedAt.toIso8601String(),
+        'dirty': note.dirty ? 1 : 0,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 }

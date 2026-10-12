@@ -4,9 +4,12 @@ import '../data/local/note.dart';
 
 /// Satu baris catatan, dengan badge "belum tersinkron" saat note.dirty == true.
 class NoteTile extends StatelessWidget {
-  const NoteTile({super.key, required this.note, this.onDelete});
+  const NoteTile({super.key, required this.note, this.onTap, this.onDelete});
 
   final Note note;
+
+  /// Dijalankan saat baris ditekan. `null` berarti baris tidak bisa ditekan.
+  final VoidCallback? onTap;
   final VoidCallback? onDelete;
 
   @override
@@ -26,6 +29,7 @@ class NoteTile extends StatelessWidget {
           ),
         ],
       ),
+      onTap: onTap,
       trailing: onDelete == null
           ? null
           : IconButton(
@@ -38,6 +42,8 @@ class NoteTile extends StatelessWidget {
 }
 
 /// Badge penanda bahwa catatan masih menunggu antrean sync.
+///
+/// Publik supaya bisa dipakai halaman detail juga — satu konsep, satu widget.
 class DirtyBadge extends StatelessWidget {
   const DirtyBadge({super.key});
 
