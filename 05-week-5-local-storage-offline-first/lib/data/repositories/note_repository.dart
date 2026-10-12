@@ -1,10 +1,15 @@
 import 'package:sqflite/sqflite.dart';
+
 import '../local/db.dart';
 import '../local/note.dart';
 
+/// Satu-satunya pintu ke tabel `notes`.
+///
+/// Antrean sync (`syncNotes`) tinggal di `lib/data/sync.dart` supaya class ini
+/// tetap fokus pada CRUD.
 class NoteRepository {
   NoteRepository({Future<Database> Function()? openDb})
-      : _openDb = openDb ?? openNotesDb;
+    : _openDb = openDb ?? openNotesDb;
 
   final Future<Database> Function() _openDb;
 
@@ -45,17 +50,21 @@ class NoteRepository {
     return ((rows.first['c'] as num?)?.toInt() ?? 0);
   }
 
-  Future<void> markAllSynced() async {
+  /// Catatan yang menunggu dikirim, perubahan TERLAMA lebih dulu — supaya
+  /// urutan yang diterima server sama dengan urutan user mengubahnya.
+  Future<List<Note>> fetchDirty() async {
     final db = await _openDb();
-    await db.update('notes', {'dirty': 0}, where: 'dirty = 1');
+    final rows = await db.query(
+      'notes',
+      where: 'dirty = 1',
+      orderBy: 'updated_at ASC',
+    );
+    return rows.map(Note.fromMap).toList();
   }
-}
 
-Future<int> syncNotes(NoteRepository repo) async {
-  final dirtyCount = await repo.countDirty();
-  if (dirtyCount == 0) return 0;
-
-  await Future.delayed(const Duration(seconds: 1));
-  await repo.markAllSynced();
-  return dirtyCount;
+  /// Tandai SATU catatan bersih. Dipanggil hanya setelah server menerimanya.
+  Future<void> markSynced(int id) async {
+    final db = await _openDb();
+    await db.update('notes', {'dirty': 0}, where: 'id = ?', whereArgs: [id]);
+  }
 }

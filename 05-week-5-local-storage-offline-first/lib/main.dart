@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'data/prefs.dart';
 import 'data/providers.dart';
 import 'pages/notes_page.dart';

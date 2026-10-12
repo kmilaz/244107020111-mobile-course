@@ -5,6 +5,10 @@ import 'models/post.dart';
 import 'prefs.dart';
 import 'repositories/note_repository.dart';
 import 'repositories/post_repository.dart';
+import 'sync.dart';
+
+// ---------------------------------------------------------------- repository
+// Satu-satunya tempat yang menyentuh platform: sqflite, SharedPreferences, Dio.
 
 final prefsRepositoryProvider = Provider<PrefsRepository>(
   (ref) => PrefsRepository(),
@@ -17,6 +21,12 @@ final noteRepositoryProvider = Provider<NoteRepository>(
 final postRepositoryProvider = Provider<PostRepository>(
   (ref) => PostRepository(),
 );
+
+/// Cache `cached_posts` — dipisah dari `PostRepository` (Refactoring Challenge
+/// #2) supaya repository tetap menjadi sumber remote murni.
+final postsCacheProvider = Provider<PostsCache>((ref) => PostsCache());
+
+// ----------------------------------------------------------------- preferensi
 
 final darkModeProvider = AsyncNotifierProvider<DarkModeNotifier, bool>(
   DarkModeNotifier.new,
@@ -40,16 +50,20 @@ final lastOpenedProvider = FutureProvider<String?>(
   (ref) => ref.watch(prefsRepositoryProvider).getLastOpened(),
 );
 
+// --------------------------------------------------------------- flag offline
+
 final forceOfflineProvider = NotifierProvider<ForceOfflineNotifier, bool>(
   ForceOfflineNotifier.new,
 );
 
 class ForceOfflineNotifier extends Notifier<bool> {
   @override
-  bool build() => false;
+  bool build() => false; // nilai awal sudah diketahui → Notifier (sinkron)
 
   void set(bool value) => state = value;
 }
+
+// ------------------------------------------------------------ catatan (TULIS)
 
 final notesProvider = AsyncNotifierProvider<NotesNotifier, List<Note>>(
   NotesNotifier.new,
@@ -79,10 +93,13 @@ class NotesNotifier extends AsyncNotifier<List<Note>> {
   }
 }
 
+/// Jumlah catatan yang belum tersinkron (badge antrean sync).
 final dirtyCountProvider = FutureProvider<int>((ref) {
-  ref.watch(notesProvider);
+  ref.watch(notesProvider); // hitung ulang setiap daftar berubah
   return ref.watch(noteRepositoryProvider).countDirty();
 });
+
+// -------------------------------------------------------------- posts (BACA)
 
 enum PostsSource { none, cache, network }
 
@@ -122,9 +139,13 @@ final postsProvider = NotifierProvider<PostsNotifier, PostsState>(
   PostsNotifier.new,
 );
 
+/// Cache-first read: tampilkan `cached_posts` seketika, lalu refresh dari
+/// jaringan di background dan timpa cache.
 class PostsNotifier extends Notifier<PostsState> {
   @override
   PostsState build() {
+    // listen, BUKAN watch: mengubah toggle harus menjalankan ulang load
+    // TANPA membuang posts yang sedang tampil di layar.
     ref.listen(forceOfflineProvider, (_, _) => load());
     Future.microtask(load);
     return const PostsState(isLoading: true);
@@ -132,21 +153,24 @@ class PostsNotifier extends Notifier<PostsState> {
 
   Future<void> load() async {
     final repo = ref.read(postRepositoryProvider);
+    final cache = ref.read(postsCacheProvider);
     final forceOffline = ref.read(forceOfflineProvider);
 
-    final cached = await repo.readCached();
+    // 1. CACHE DULU → layar terisi seketika, tanpa menunggu jaringan.
+    final cached = await cache.read();
     state = PostsState(
       posts: cached,
       source: PostsSource.cache,
-      lastCachedAt: await repo.lastCachedAt(),
+      lastCachedAt: await cache.lastCachedAt(),
       isLoading: !forceOffline,
     );
 
-    if (forceOffline) return;
+    if (forceOffline) return; // demo offline deterministik
 
+    // 2. Refresh dari jaringan di belakang, lalu timpa cache.
     try {
       final fresh = await repo.fetchPosts();
-      await repo.replaceAll(fresh);
+      await cache.replaceAll(fresh);
       state = PostsState(
         posts: fresh,
         source: PostsSource.network,
