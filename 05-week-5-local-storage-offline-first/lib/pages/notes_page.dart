@@ -11,6 +11,8 @@ class NotesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final notes = ref.watch(notesProvider);
     final dirtyCount = ref.watch(dirtyCountProvider);
+    final posts = ref.watch(postsProvider);
+    final forceOffline = ref.watch(forceOfflineProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -37,25 +39,83 @@ class NotesPage extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('Tambah'),
       ),
-      body: notes.when(
-        data: (items) => items.isEmpty
-            ? const Center(child: Text('Belum ada catatan'))
-            : ListView.builder(
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final note = items[index];
-                  final id = note.id;
-                  return _NoteRow(
-                    note: note,
-                    onDelete: id == null
-                        ? null
-                        : () => ref.read(notesProvider.notifier).remove(id),
-                  );
-                },
-              ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) =>
-            Center(child: Text('Error membaca catatan: $error')),
+      body: Column(
+        children: [
+        SwitchListTile(
+          dense: true,
+          title: const Text('Force offline'),
+          value: forceOffline,
+          onChanged: (value) =>
+              ref.read(forceOfflineProvider.notifier).set(value),
+        ),
+        const Divider(height: 1),
+          Expanded(
+            child: notes.when(
+              data: (items) => items.isEmpty
+                  ? const Center(child: Text('Belum ada catatan'))
+                  : ListView.builder(
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final note = items[index];
+                        final id = note.id;
+                        return _NoteRow(
+                          note: note,
+                          onDelete: id == null
+                              ? null
+                              : () => ref
+                                  .read(notesProvider.notifier)
+                                  .remove(id),
+                        );
+                      },
+                    ),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) =>
+                  Center(child: Text('Error membaca catatan: $error')),
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 4, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Posts (cache-first)',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(_postsLabel(posts),
+                          style: const TextStyle(fontSize: 11)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Muat ulang',
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () => ref.read(postsProvider.notifier).load(),
+                ),
+              ],
+            ),
+          ),
+          if (posts.isLoading) const LinearProgressIndicator(),
+          Expanded(
+            child: posts.posts.isEmpty
+                ? const Center(child: Text('Belum ada posts. Tekan muat ulang.'))
+                : ListView.builder(
+                    itemCount: posts.posts.length,
+                    itemBuilder: (context, index) {
+                      final post = posts.posts[index];
+                      return ListTile(
+                        dense: true,
+                        title: Text(post.title,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(post.body,
+                            maxLines: 2, overflow: TextOverflow.ellipsis),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -91,6 +151,14 @@ class NotesPage extends ConsumerWidget {
 
   Future<void> _sync(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
+
+    if (ref.read(forceOfflineProvider)) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Mode offline aktif - sync dilewati')),
+      );
+      return; 
+    }
+
     final synced = await ref.read(notesProvider.notifier).sync();
     messenger.showSnackBar(
       SnackBar(content: Text('$synced catatan tersinkron')),
@@ -170,4 +238,20 @@ class _DirtyChip extends StatelessWidget {
 String _formatTime(DateTime time) {
   final minute = time.minute.toString().padLeft(2, '0');
   return '${time.day}/${time.month} ${time.hour}:$minute';
+}
+
+String _postsLabel(PostsState state) {
+  final cachedAt = state.lastCachedAt;
+  final stamp = cachedAt == null
+      ? ''
+      : ' ${cachedAt.day}/${cachedAt.month} '
+          '${cachedAt.hour}:${cachedAt.minute.toString().padLeft(2, '0')}';
+
+  final base = switch (state.source) {
+    PostsSource.none => 'belum dimuat',
+    PostsSource.cache => 'dari cache$stamp',
+    PostsSource.network => 'dari jaringan$stamp',
+  };
+
+  return state.error != null ? '$base - gagal refresh' : base;
 }
