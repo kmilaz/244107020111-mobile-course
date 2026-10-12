@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/local/note.dart';
+
 import '../data/providers.dart';
+import '../widgets/note_tile.dart';
 import 'settings_page.dart';
 
 class NotesPage extends ConsumerWidget {
@@ -41,14 +42,14 @@ class NotesPage extends ConsumerWidget {
       ),
       body: Column(
         children: [
-        SwitchListTile(
-          dense: true,
-          title: const Text('Force offline'),
-          value: forceOffline,
-          onChanged: (value) =>
-              ref.read(forceOfflineProvider.notifier).set(value),
-        ),
-        const Divider(height: 1),
+          SwitchListTile(
+            dense: true,
+            title: const Text('Force offline'),
+            value: forceOffline,
+            onChanged: (value) =>
+                ref.read(forceOfflineProvider.notifier).set(value),
+          ),
+          const Divider(height: 1),
           Expanded(
             child: notes.when(
               data: (items) => items.isEmpty
@@ -58,13 +59,12 @@ class NotesPage extends ConsumerWidget {
                       itemBuilder: (context, index) {
                         final note = items[index];
                         final id = note.id;
-                        return _NoteRow(
+                        return NoteTile(
                           note: note,
                           onDelete: id == null
                               ? null
-                              : () => ref
-                                  .read(notesProvider.notifier)
-                                  .remove(id),
+                              : () =>
+                                    ref.read(notesProvider.notifier).remove(id),
                         );
                       },
                     ),
@@ -82,10 +82,14 @@ class NotesPage extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Posts (cache-first)',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text(_postsLabel(posts),
-                          style: const TextStyle(fontSize: 11)),
+                      const Text(
+                        'Posts (cache-first)',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        _postsLabel(posts),
+                        style: const TextStyle(fontSize: 11),
+                      ),
                     ],
                   ),
                 ),
@@ -100,17 +104,25 @@ class NotesPage extends ConsumerWidget {
           if (posts.isLoading) const LinearProgressIndicator(),
           Expanded(
             child: posts.posts.isEmpty
-                ? const Center(child: Text('Belum ada posts. Tekan muat ulang.'))
+                ? const Center(
+                    child: Text('Belum ada posts. Tekan muat ulang.'),
+                  )
                 : ListView.builder(
                     itemCount: posts.posts.length,
                     itemBuilder: (context, index) {
                       final post = posts.posts[index];
                       return ListTile(
                         dense: true,
-                        title: Text(post.title,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(post.body,
-                            maxLines: 2, overflow: TextOverflow.ellipsis),
+                        title: Text(
+                          post.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          post.body,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     },
                   ),
@@ -156,7 +168,7 @@ class NotesPage extends ConsumerWidget {
       messenger.showSnackBar(
         const SnackBar(content: Text('Mode offline aktif - sync dilewati')),
       );
-      return; 
+      return;
     }
 
     final synced = await ref.read(notesProvider.notifier).sync();
@@ -166,59 +178,8 @@ class NotesPage extends ConsumerWidget {
   }
 }
 
-class _NoteRow extends StatelessWidget {
-  const _NoteRow({required this.note, this.onDelete});
-
-  final Note note;
-  final VoidCallback? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(note.title),
-      subtitle: Row(
-        children: [
-          if (note.dirty) const _DirtyBadge(),
-          if (note.dirty) const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              note.body.isEmpty ? _formatTime(note.updatedAt) : note.body,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-      trailing: onDelete == null
-          ? null
-          : IconButton(
-              tooltip: 'Hapus',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: onDelete,
-            ),
-    );
-  }
-}
-
-class _DirtyBadge extends StatelessWidget {
-  const _DirtyBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade200,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        'belum tersinkron',
-        style: TextStyle(fontSize: 11, color: Colors.orange.shade900),
-      ),
-    );
-  }
-}
-
+/// Ringkasan antrean sync untuk seluruh daftar.
+/// (Berbeda dari [NoteTile], yang hanya menampilkan status SATU baris.)
 class _DirtyChip extends StatelessWidget {
   const _DirtyChip({required this.count});
 
@@ -235,17 +196,13 @@ class _DirtyChip extends StatelessWidget {
   }
 }
 
-String _formatTime(DateTime time) {
-  final minute = time.minute.toString().padLeft(2, '0');
-  return '${time.day}/${time.month} ${time.hour}:$minute';
-}
-
+/// Menjelaskan dari mana data posts di layar berasal.
 String _postsLabel(PostsState state) {
   final cachedAt = state.lastCachedAt;
   final stamp = cachedAt == null
       ? ''
       : ' ${cachedAt.day}/${cachedAt.month} '
-          '${cachedAt.hour}:${cachedAt.minute.toString().padLeft(2, '0')}';
+            '${cachedAt.hour}:${cachedAt.minute.toString().padLeft(2, '0')}';
 
   final base = switch (state.source) {
     PostsSource.none => 'belum dimuat',
