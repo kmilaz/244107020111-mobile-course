@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'data/prefs.dart';
 import 'data/providers.dart';
-import 'pages/settings_page.dart';
+import 'pages/notes_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +25,7 @@ class MainApp extends ConsumerWidget {
         colorSchemeSeed: Colors.deepPurple,
         brightness: darkMode ? Brightness.dark : Brightness.light,
       ),
-      home: const SettingsPage(),
+      home: const NotesPage(),
     );
   }
 }
