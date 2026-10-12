@@ -18,6 +18,11 @@ class NotesPage extends ConsumerWidget {
         actions: [
           Center(child: _DirtyChip(count: dirtyCount.value ?? 0)),
           IconButton(
+            tooltip: 'Sync',
+            icon: const Icon(Icons.sync),
+            onPressed: () => _sync(context, ref),
+          ),
+          IconButton(
             tooltip: 'Pengaturan',
             icon: const Icon(Icons.settings),
             onPressed: () => Navigator.push(
@@ -83,6 +88,14 @@ class NotesPage extends ConsumerWidget {
     if (result == null || result.trim().isEmpty) return;
     await ref.read(notesProvider.notifier).add(title: result.trim());
   }
+
+  Future<void> _sync(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final synced = await ref.read(notesProvider.notifier).sync();
+    messenger.showSnackBar(
+      SnackBar(content: Text('$synced catatan tersinkron')),
+    );
+  }
 }
 
 class _NoteRow extends StatelessWidget {
@@ -147,8 +160,9 @@ class _DirtyChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Chip(
       label: Text(count == 0 ? 'semua tersinkron' : '$count belum sync'),
-      backgroundColor:
-          count == 0 ? Colors.green.shade100 : Colors.orange.shade200,
+      backgroundColor: count == 0
+          ? Colors.green.shade100
+          : Colors.orange.shade200,
     );
   }
 }

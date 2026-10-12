@@ -17,7 +17,7 @@ class DarkModeNotifier extends AsyncNotifier<bool> {
   Future<void> toggle() async {
     final next = !(state.value ?? false);
 
-    state = const AsyncLoading();                        
+    state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       await ref.read(prefsRepositoryProvider).setDarkMode(next);
       return next;
@@ -33,8 +33,9 @@ final noteRepositoryProvider = Provider<NoteRepository>(
   (ref) => NoteRepository(),
 );
 
-final notesProvider =
-    AsyncNotifierProvider<NotesNotifier, List<Note>>(NotesNotifier.new);
+final notesProvider = AsyncNotifierProvider<NotesNotifier, List<Note>>(
+  NotesNotifier.new,
+);
 
 class NotesNotifier extends AsyncNotifier<List<Note>> {
   NoteRepository get _repo => ref.read(noteRepositoryProvider);
@@ -51,6 +52,12 @@ class NotesNotifier extends AsyncNotifier<List<Note>> {
   Future<void> remove(int id) async {
     await _repo.deleteNote(id);
     ref.invalidateSelf();
+  }
+
+  Future<int> sync() async {
+    final synced = await syncNotes(_repo);
+    ref.invalidateSelf(); //
+    return synced;
   }
 }
 

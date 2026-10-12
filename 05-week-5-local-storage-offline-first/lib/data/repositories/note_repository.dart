@@ -40,7 +40,8 @@ class NoteRepository {
   Future<int> countDirty() async {
     final db = await _openDb();
     final rows = await db.rawQuery(
-        'SELECT COUNT(*) AS c FROM notes WHERE dirty = 1');
+      'SELECT COUNT(*) AS c FROM notes WHERE dirty = 1',
+    );
     return ((rows.first['c'] as num?)?.toInt() ?? 0);
   }
 
@@ -48,4 +49,13 @@ class NoteRepository {
     final db = await _openDb();
     await db.update('notes', {'dirty': 0}, where: 'dirty = 1');
   }
+}
+
+Future<int> syncNotes(NoteRepository repo) async {
+  final dirtyCount = await repo.countDirty();
+  if (dirtyCount == 0) return 0;
+
+  await Future.delayed(const Duration(seconds: 1));
+  await repo.markAllSynced();
+  return dirtyCount;
 }
