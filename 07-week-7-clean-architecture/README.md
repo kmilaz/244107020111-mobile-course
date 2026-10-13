@@ -62,25 +62,28 @@ Bootstrap membuat repository sendiri, bukan menerimanya dari provider. *Catatan 
 
 ```
 lib/
-├── core/
-│   ├── failures.dart        # Failure — murni Dart, tanpa Flutter
+├── core/                    # murni Dart — tanpa Flutter, Dio, sqflite
+│   ├── failures.dart        # Failure: LocalFailure, NetworkFailure
 │   └── format.dart          # fungsi murni: format tanggal & stempel waktu
+├── data/
+│   └── local/db.dart        # infrastruktur bersama: satu file database,
+│                            # dipakai tabel `notes` dan `cached_posts`
+├── shared/
+│   └── providers.dart       # flag demo lintas fitur: force offline
 ├── features/
 │   ├── notes/
-│   │   ├── domain/
-│   │   │   ├── entities/note.dart
-│   │   │   ├── repositories/note_repository.dart      # INTERFACE
-│   │   │   └── usecases/{add_note,update_note,sync_notes}.dart
-│   │   ├── data/
-│   │   │   ├── models/note_model.dart                 # satu-satunya tempat mapping
-│   │   │   └── repositories/note_repository_impl.dart
-│   │   └── presentation/
-│   │       ├── providers/notes_providers.dart         # DI + notifier
-│   │       └── pages/{notes_page,note_detail_page}.dart
-│   └── posts/
-│       ├── domain/          # entity, interface, use case cache-first
-│       ├── data/            # model, impl (Dio + tabel cached_posts)
-│       └── presentation/    # provider + widget daftar posts
+│   │   ├── domain/          # entity · interface repository · 3 use case
+│   │   ├── data/            # model (mapping) · impl SQLite
+│   │   └── presentation/    # providers (DI + notifier) · pages · widgets
+│   ├── posts/
+│   │   ├── domain/          # entity · 2 interface · use case cache-first
+│   │   ├── data/            # model · impl Dio · impl cache SQLite
+│   │   └── presentation/    # providers · widget daftar posts
+│   └── preferences/
+│       ├── domain/          # interface repository preferensi
+│       ├── data/            # impl SharedPreferences
+│       └── presentation/    # providers · halaman pengaturan
+├── main.dart
 └── router.dart
 ```
 
@@ -90,7 +93,7 @@ lib/
 presentation  ──>  domain  <──  data
 ```
 
-`domain` tidak mengimpor Flutter, Dio, sqflite, maupun shared_preferences — itu yang membuatnya bisa diuji tanpa perangkat.
+`domain` tidak mengimpor Flutter, Dio, sqflite, maupun shared_preferences — itu yang membuatnya bisa diuji tanpa perangkat. Fitur berkomunikasi lewat rute, bukan dengan saling mengimpor halaman.
 
 ### Use Case: mana yang layak, mana yang tidak
 
@@ -120,6 +123,15 @@ Codelab memperingatkan **over-engineering**: *"Apakah AI membuat use case untuk 
 | `widgets/note_tile.dart` | `features/notes/presentation/widgets/` |
 | formatting tanggal di 3 tempat | `core/format.dart` (fungsi murni) |
 | `PrefsRepository()` di `main()` | dipanggil lewat provider (DI tidak lagi bocor) |
+| `data/models/post.dart` (entity + mapping) | `features/posts/domain/entities/post.dart` (murni) + `features/posts/data/models/post_model.dart` |
+| `data/repositories/post_repository.dart` + `PostsCache` di `data/sync.dart` | `features/posts/domain/repositories/` (**2 interface**) + `features/posts/data/repositories/` (`PostRepositoryImpl` Dio, `PostsCacheImpl` SQLite) |
+| `data/api_client.dart` | `features/posts/data/api_client.dart` |
+| `data/providers.dart` → provider posts | `features/posts/presentation/providers/posts_providers.dart`, dan UI-nya dikeluarkan dari halaman catatan menjadi `features/posts/presentation/widgets/posts_section.dart` |
+| `data/prefs.dart` + provider tema | `features/preferences/{domain,data,presentation}` (interface + impl SharedPreferences + provider) |
+| `pages/settings_page.dart` | `features/preferences/presentation/pages/settings_page.dart` |
+| flag `forceOffline` di `data/providers.dart` | `shared/providers.dart` — dipakai **dua** fitur (refresh posts dan antrean sync), jadi bukan milik salah satunya |
+
+Setelah refactor, `lib/data/` hanya menyisakan **satu** berkas: `local/db.dart` (infrastruktur bersama, karena satu file database dipakai dua fitur).
 
 Aturan bisnis yang tadinya tersebar di widget dan repository sekarang berkumpul di use case: `AddNote` (menolak judul kosong, wajib `dirty`), `UpdateNote` (`updatedAt = now` + `dirty`), `SyncNotes` (urut antrean, tandai bersih per baris).
 

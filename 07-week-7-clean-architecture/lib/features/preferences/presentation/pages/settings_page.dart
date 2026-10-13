@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/format.dart';
-import '../data/providers.dart';
+import '../../../../core/format.dart';
+import '../providers/preferences_providers.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -29,7 +29,7 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.history),
             title: const Text('Terakhir dibuka'),
-            // Formatting tanggal sekarang di lib/core/format.dart (fungsi murni).
+            // Formatting tanggal dari lib/core/format.dart (fungsi murni).
             subtitle: Text(formatStoredTimestamp(lastOpened.value)),
           ),
         ],

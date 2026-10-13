@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
-Dio createDio() {
+/// Dio khusus fitur posts. Base URL dan timeout dikonfigurasi di satu tempat.
+Dio createPostDio() {
   final dio = Dio(
     BaseOptions(
       baseUrl: 'https://jsonplaceholder.typicode.com',

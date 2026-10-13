@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'data/providers.dart';
+import 'features/preferences/presentation/providers/preferences_providers.dart';
 import 'router.dart';
 
 Future<void> main() async {
@@ -20,13 +20,13 @@ class _MainAppState extends ConsumerState<MainApp> {
   @override
   void initState() {
     super.initState();
-    // Mencatat waktu buka lewat provider, bukan `PrefsRepository()` langsung:
-    // instansiasi repository tidak boleh terjadi di luar wiring DI.
+    // Mencatat waktu buka lewat provider, bukan `PreferencesRepositoryImpl()`
+    // langsung: instansiasi repository tidak boleh terjadi di luar wiring DI.
     WidgetsBinding.instance.addPostFrameCallback((_) => _markOpened());
   }
 
   Future<void> _markOpened() async {
-    await ref.read(prefsRepositoryProvider).markOpenedNow();
+    await ref.read(preferencesRepositoryProvider).markOpenedNow();
     // Nilai "terakhir dibuka" berubah → segarkan pembacanya.
     ref.invalidate(lastOpenedProvider);
   }

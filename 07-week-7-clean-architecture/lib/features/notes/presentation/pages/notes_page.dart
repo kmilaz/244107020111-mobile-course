@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/format.dart';
-import '../../../../data/providers.dart';
+import '../../../../shared/providers.dart';
+import '../../../posts/presentation/widgets/posts_section.dart';
 import '../providers/notes_providers.dart';
 import '../widgets/note_tile.dart';
 
@@ -14,7 +14,6 @@ class NotesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final notes = ref.watch(notesProvider);
     final dirtyCount = ref.watch(dirtyCountProvider);
-    final posts = ref.watch(postsProvider);
     final forceOffline = ref.watch(forceOfflineProvider);
 
     return Scaffold(
@@ -71,65 +70,14 @@ class NotesPage extends ConsumerWidget {
                       },
                     ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              // Pesan yang tampil sudah ramah pengguna: layer data mengubah
-              // exception menjadi Failure, dan Failure.toString() = message-nya.
+              // Pesannya sudah ramah: layer data mengubah exception menjadi
+              // Failure, dan Failure.toString() = pesannya.
               error: (error, _) => Center(child: Text('$error')),
             ),
           ),
           const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 4, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Posts (cache-first)',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        _postsLabel(posts),
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Muat ulang',
-                  icon: const Icon(Icons.refresh),
-                  onPressed: () => ref.read(postsProvider.notifier).load(),
-                ),
-              ],
-            ),
-          ),
-          if (posts.isLoading) const LinearProgressIndicator(),
-          Expanded(
-            child: posts.posts.isEmpty
-                ? const Center(
-                    child: Text('Belum ada posts. Tekan muat ulang.'),
-                  )
-                : ListView.builder(
-                    itemCount: posts.posts.length,
-                    itemBuilder: (context, index) {
-                      final post = posts.posts[index];
-                      return ListTile(
-                        dense: true,
-                        title: Text(
-                          post.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          post.body,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    },
-                  ),
-          ),
+          // Seluruh isi fitur posts ditangani widget-nya sendiri.
+          const Expanded(child: PostsSection()),
         ],
       ),
     );
@@ -199,18 +147,4 @@ class _DirtyChip extends StatelessWidget {
           : Colors.orange.shade200,
     );
   }
-}
-
-/// Menjelaskan dari mana data posts di layar berasal.
-String _postsLabel(PostsState state) {
-  final cachedAt = state.lastCachedAt;
-  final stamp = cachedAt == null ? '' : formatCacheStamp(cachedAt);
-
-  final base = switch (state.source) {
-    PostsSource.none => 'belum dimuat',
-    PostsSource.cache => 'dari cache$stamp',
-    PostsSource.network => 'dari jaringan$stamp',
-  };
-
-  return state.error != null ? '$base - gagal refresh' : base;
 }
