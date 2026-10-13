@@ -105,3 +105,43 @@ Codelab memperingatkan **over-engineering**: *"Apakah AI membuat use case untuk 
 | `DeleteNote`, `GetNotes`, `GetNoteById` | **repository langsung** | tanpa aturan tambahan; use case hanya jadi lapisan kosong |
 
 > Catatan: contoh di codelab memakai `GetNotes` sebagai use case — itu tipis (satu baris meneruskan panggilan). Di sini sengaja tidak dibuat, dan alasannya dicatat. Efeknya: test menguji **aturan yang nyata** (`AddNote`, `SyncNotes`), bukan sekadar penerusan.
+
+---
+
+### Refactor yang Dikerjakan
+
+| Dari | Ke |
+| --- | --- |
+| `data/local/note.dart` (entity + mapping) | `features/notes/domain/entities/note.dart` (murni) + `features/notes/data/models/note_model.dart` (mapping saja) |
+| `data/repositories/note_repository.dart` (implementasi konkret) | `features/notes/domain/repositories/note_repository.dart` (**interface**) + `features/notes/data/repositories/note_repository_impl.dart` (SQLite) |
+| `data/sync.dart` → `syncNotes()` | `features/notes/domain/usecases/sync_notes.dart` (aturan antrean jadi milik domain) |
+| `data/providers.dart` → provider catatan | `features/notes/presentation/providers/notes_providers.dart` (DI + notifier) |
+| `pages/notes_page.dart`, `pages/note_detail_page.dart` | `features/notes/presentation/pages/` |
+| `widgets/note_tile.dart` | `features/notes/presentation/widgets/` |
+| formatting tanggal di 3 tempat | `core/format.dart` (fungsi murni) |
+| `PrefsRepository()` di `main()` | dipanggil lewat provider (DI tidak lagi bocor) |
+
+Aturan bisnis yang tadinya tersebar di widget dan repository sekarang berkumpul di use case: `AddNote` (menolak judul kosong, wajib `dirty`), `UpdateNote` (`updatedAt = now` + `dirty`), `SyncNotes` (urut antrean, tandai bersih per baris).
+
+---
+
+### Verifikasi Aturan Dependensi
+
+Tiga pemeriksaan dari codelab, dijalankan setelah refactor:
+
+| # | Pemeriksaan | Hasil |
+| --- | --- | --- |
+| 1 | Presentation steril dari data mentah (`Dio(`, `openDatabase`, `getDatabasesPath`, `SharedPreferences.getInstance`, `jsonDecode`) di `features/notes/presentation` + `lib/pages` | **0 hasil** ✓ |
+| 2 | Domain steril dari framework (`import 'package:flutter\|dio\|sqflite\|firebase\|shared_preferences`) di `features/notes/domain` + `lib/core` | **0 hasil** ✓ |
+| 3 | `flutter analyze` · `flutter test` | **0 issues** · **6 test lulus** ✓ |
+
+Satu baris memang muncul bila pencarian #1 diperluas dengan pola `RepositoryImpl(`:
+
+```dart
+// features/notes/presentation/providers/notes_providers.dart
+final noteRepositoryProvider = Provider<NoteRepository>(
+  (ref) => NoteRepositoryImpl(openNotesDb),
+);
+```
+
+Itu **bukan pelanggaran**: berkas ini adalah *composition root* — satu-satunya tempat implementasi konkret dipasang, dan hanya di situ `openNotesDb` boleh diserahkan. Codelab pun menaruh wiring provider di folder presentation.
