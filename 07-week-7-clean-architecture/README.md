@@ -55,3 +55,53 @@ await PrefsRepository().markOpenedNow();
 Bootstrap membuat repository sendiri, bukan menerimanya dari provider. *Catatan jujur:* baris ini berjalan sebelum `ProviderScope` ada, jadi tidak ada container untuk membacanya — tapi tetap pelanggaran, karena tidak ada kontrak yang bisa dipalsukan saat test → **jalankan lewat provider setelah container tersedia**.
 
 `lib/data/providers.dart` **tidak** dihitung sebagai pelanggaran: di situlah DI memang seharusnya. Masalahnya hanya lokasi folder — isinya state presentasi, tapi tinggal di `data/`.
+
+---
+
+### Struktur Target
+
+```
+lib/
+├── core/
+│   ├── failures.dart        # Failure — murni Dart, tanpa Flutter
+│   └── format.dart          # fungsi murni: format tanggal & stempel waktu
+├── features/
+│   ├── notes/
+│   │   ├── domain/
+│   │   │   ├── entities/note.dart
+│   │   │   ├── repositories/note_repository.dart      # INTERFACE
+│   │   │   └── usecases/{add_note,update_note,sync_notes}.dart
+│   │   ├── data/
+│   │   │   ├── models/note_model.dart                 # satu-satunya tempat mapping
+│   │   │   └── repositories/note_repository_impl.dart
+│   │   └── presentation/
+│   │       ├── providers/notes_providers.dart         # DI + notifier
+│   │       └── pages/{notes_page,note_detail_page}.dart
+│   └── posts/
+│       ├── domain/          # entity, interface, use case cache-first
+│       ├── data/            # model, impl (Dio + tabel cached_posts)
+│       └── presentation/    # provider + widget daftar posts
+└── router.dart
+```
+
+**Arah dependensi:**
+
+```
+presentation  ──>  domain  <──  data
+```
+
+`domain` tidak mengimpor Flutter, Dio, sqflite, maupun shared_preferences — itu yang membuatnya bisa diuji tanpa perangkat.
+
+### Use Case: mana yang layak, mana yang tidak
+
+Codelab memperingatkan **over-engineering**: *"Apakah AI membuat use case untuk tiap CRUD satu-baris? Itu over-engineering — cukup repository langsung ke notifier, dengan alasan tertulis."* Jadi aturannya:
+
+| Operasi | Bentuk | Alasan |
+| --- | --- | --- |
+| `AddNote` | **use case** | aturan: catatan baru **wajib** bertanda `dirty` |
+| `UpdateNote` | **use case** | aturan: set `updatedAt = now` **dan** `dirty` |
+| `SyncNotes` | **use case** | aturan: urutkan antrean terlama dulu, tandai bersih **per baris** |
+| `LoadPostsCacheFirst` | **use case** | kebijakan: cache dulu → refresh di belakang → timpa cache |
+| `DeleteNote`, `GetNotes`, `GetNoteById` | **repository langsung** | tanpa aturan tambahan; use case hanya jadi lapisan kosong |
+
+> Catatan: contoh di codelab memakai `GetNotes` sebagai use case — itu tipis (satu baris meneruskan panggilan). Di sini sengaja tidak dibuat, dan alasannya dicatat. Efeknya: test menguji **aturan yang nyata** (`AddNote`, `SyncNotes`), bukan sekadar penerusan.
