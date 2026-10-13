@@ -4,12 +4,19 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// FCM: membaca android/app/google-services.json. Kalau file itu tidak ada,
+// Firebase.initializeApp() gagal dan aplikasi menonaktifkan fitur FCM sendiri.
+apply(plugin = "com.google.gms.google-services")
+
 android {
     namespace = "com.example.mobile_week_6"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // WAJIB untuk flutter_local_notifications: plugin itu memakai API Java 8+
+        // yang perlu di-desugar agar jalan di perangkat Android lama.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -44,6 +51,23 @@ kotlin {
     }
 }
 
+dependencies {
+    // Library pendukung desugaring di atas. Naikkan versinya bila diminta
+    // flutter_local_notifications.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
+
 flutter {
     source = "../.."
 }
+
+// ---------------------------------------------------------------------------
+// FCM / Firebase.
+//
+// Konfigurasi diambil dari android/app/google-services.json oleh plugin
+// google-services di atas. Kalau file itu tidak ada, build tetap berhasil tetapi
+// Firebase.initializeApp() gagal dan aplikasi menonaktifkan fitur FCM sendiri
+// (lihat `firebaseReady` di lib/messaging/push_service.dart).
+//
+// Langkah pemasangan lengkapnya ada di README.md bagian "Mengaktifkan FCM".
+// ---------------------------------------------------------------------------
