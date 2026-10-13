@@ -1,23 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'data/prefs.dart';
 import 'data/providers.dart';
 import 'router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await PrefsRepository().markOpenedNow();
-
   runApp(const ProviderScope(child: MainApp()));
 }
 
-class MainApp extends ConsumerWidget {
+class MainApp extends ConsumerStatefulWidget {
   const MainApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MainApp> createState() => _MainAppState();
+}
+
+class _MainAppState extends ConsumerState<MainApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Mencatat waktu buka lewat provider, bukan `PrefsRepository()` langsung:
+    // instansiasi repository tidak boleh terjadi di luar wiring DI.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _markOpened());
+  }
+
+  Future<void> _markOpened() async {
+    await ref.read(prefsRepositoryProvider).markOpenedNow();
+    // Nilai "terakhir dibuka" berubah → segarkan pembacanya.
+    ref.invalidate(lastOpenedProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final darkMode = ref.watch(darkModeProvider).value ?? false;
 
     return MaterialApp.router(

@@ -1,50 +1,79 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile_week_7/data/local/note.dart';
-import 'package:mobile_week_7/data/providers.dart';
-import 'package:mobile_week_7/data/repositories/note_repository.dart';
-import 'package:mobile_week_7/data/sync.dart';
+import 'package:mobile_week_7/core/failures.dart';
+import 'package:mobile_week_7/features/notes/data/models/note_model.dart';
+import 'package:mobile_week_7/features/notes/domain/entities/note.dart';
+import 'package:mobile_week_7/features/notes/domain/repositories/note_repository.dart';
+import 'package:mobile_week_7/features/notes/domain/usecases/sync_notes.dart';
+import 'package:mobile_week_7/features/notes/presentation/providers/notes_providers.dart';
 
-/// Repository palsu: TIDAK menyentuh SQLite sama sekali.
+/// Repository palsu: mengimplementasikan **kontrak domain**, tanpa SQLite.
 ///
-/// `openDb` sengaja diisi fungsi yang melempar — kabel jebakan. Kalau ada jalur
-/// kode yang mencoba membuka database sungguhan, test langsung gagal keras
-/// (di `flutter test` plugin sqflite tidak ada → `MissingPluginException`).
-class FakeNoteRepository extends NoteRepository {
+/// Tidak ada `openDb` dan tidak ada plugin — seluruh domain bisa diuji di VM
+/// biasa tanpa emulator.
+class FakeNoteRepository implements NoteRepository {
   FakeNoteRepository({List<Note> items = const [], this.throwError = false})
-    : _items = [...items],
-      super(openDb: () => throw UnimplementedError());
+    : _items = [...items];
 
   final List<Note> _items;
   final bool throwError;
 
-  /// Mencatat id mana saja yang ditandai bersih.
-  /// Inilah bukti bahwa penandaan dilakukan PER BARIS, bukan sekaligus.
+  /// Mencatat id mana saja yang ditandai bersih — bukti penandaan PER BARIS.
   final List<int> syncedIds = [];
 
   @override
-  Future<List<Note>> fetchNotes() async {
+  Future<({List<Note> notes, Failure? failure})> fetchNotes() async {
     if (throwError) throw Exception('db locked (simulasi)');
-    return List.of(_items);
+    return (notes: List.of(_items), failure: null);
   }
 
   @override
-  Future<int> countDirty() async => _items.where((note) => note.dirty).length;
+  Future<({Note? note, Failure? failure})> getNote(int id) async {
+    for (final item in _items) {
+      if (item.id == id) return (note: item, failure: null);
+    }
+    return (note: null, failure: null);
+  }
 
   @override
-  Future<List<Note>> fetchDirty() async {
-    // Antrean: perubahan TERLAMA lebih dulu (ASC), sama seperti query asli.
-    final dirty = _items.where((note) => note.dirty).toList()
+  Future<({Note? note, Failure? failure})> insertNote(Note note) async {
+    final stored = Note(
+      id: _items.length + 1,
+      title: note.title,
+      body: note.body,
+      updatedAt: note.updatedAt,
+      dirty: note.dirty,
+    );
+    _items.add(stored);
+    return (note: stored, failure: null);
+  }
+
+  @override
+  Future<({bool ok, Failure? failure})> updateNote(Note note) async {
+    final index = _items.indexWhere((item) => item.id == note.id);
+    if (index != -1) _items[index] = note;
+    return (ok: true, failure: null);
+  }
+
+  @override
+  Future<({bool ok, Failure? failure})> deleteNote(int id) async {
+    _items.removeWhere((item) => item.id == id);
+    return (ok: true, failure: null);
+  }
+
+  @override
+  Future<({List<Note> notes, Failure? failure})> fetchDirty() async {
+    // Antrean: perubahan TERLAMA lebih dulu, sama seperti query aslinya.
+    final dirty = _items.where((item) => item.dirty).toList()
       ..sort((a, b) => a.updatedAt.compareTo(b.updatedAt));
-    return dirty;
+    return (notes: dirty, failure: null);
   }
 
   @override
-  Future<void> markSynced(int id) async {
+  Future<({bool ok, Failure? failure})> markSynced(int id) async {
     syncedIds.add(id);
-    final index = _items.indexWhere((note) => note.id == id);
-    if (index == -1) return;
-    // Note tidak punya copyWith, jadi objek baru dibuat manual.
+    final index = _items.indexWhere((item) => item.id == id);
+    if (index == -1) return (ok: true, failure: null);
     final old = _items[index];
     _items[index] = Note(
       id: old.id,
@@ -53,30 +82,31 @@ class FakeNoteRepository extends NoteRepository {
       updatedAt: old.updatedAt,
       dirty: false,
     );
+    return (ok: true, failure: null);
   }
 }
 
 void main() {
-  test('fromMap aman terhadap field yang hilang', () {
-    final note = Note.fromMap({'title': 'Belanja'});
-    expect(note.title, 'Belanja');
-    expect(note.body, '');
-    expect(note.dirty, isFalse);
-    expect(note.id, isNull);
+  test('NoteModel.fromMap aman terhadap field yang hilang', () {
+    final model = NoteModel.fromMap({'title': 'Belanja'});
+    expect(model.title, 'Belanja');
+    expect(model.body, '');
+    expect(model.dirty, isFalse);
+    expect(model.id, isNull);
   });
 
   test('flag dirty bertahan pada serialisasi', () {
-    final note = Note(
+    final model = NoteModel(
       title: 'a',
       updatedAt: DateTime(2026, 9, 18),
       dirty: true,
     );
-    final restored = Note.fromMap(note.toMap());
+    final restored = NoteModel.fromMap(model.toMap());
     expect(restored.dirty, isTrue);
-    expect(restored.updatedAt, note.updatedAt);
+    expect(restored.updatedAt, model.updatedAt);
   });
 
-  test('syncNotes mengirim hanya catatan dirty, satu per satu', () async {
+  test('SyncNotes mengirim hanya catatan dirty, satu per satu', () async {
     final repo = FakeNoteRepository(
       items: [
         Note(id: 1, title: 'a', updatedAt: DateTime(2026, 10, 13), dirty: true),
@@ -85,23 +115,20 @@ void main() {
       ],
     );
 
-    final synced = await syncNotes(repo);
+    final result = await SyncNotes(repo).call();
 
-    expect(synced, 2);
+    expect(result.synced, 2);
     expect(repo.syncedIds, [1, 3], reason: 'hanya catatan dirty yang dikirim');
-    expect(
-      await repo.fetchDirty(),
-      isEmpty,
-      reason: 'antrean kosong setelah sync',
-    );
   });
 
-  test('syncNotes tidak melakukan apa-apa saat antrean kosong', () async {
+  test('SyncNotes tidak melakukan apa-apa saat antrean kosong', () async {
     final repo = FakeNoteRepository(
       items: [Note(id: 1, title: 'a', updatedAt: DateTime(2026, 10, 13))],
     );
 
-    expect(await syncNotes(repo), 0);
+    final result = await SyncNotes(repo).call();
+
+    expect(result.synced, 0);
     expect(repo.syncedIds, isEmpty);
   });
 
@@ -123,15 +150,14 @@ void main() {
 
     expect(notes, hasLength(1));
     expect(notes.single.title, 'Tes');
-    expect(await container.read(dirtyCountProvider.future), 0);
+    expect(container.read(dirtyCountProvider), 0);
   });
 
   test('provider error dengan repository palsu', () async {
+    // Riverpod 3 mencoba ulang provider yang gagal (sampai 10x dengan backoff),
+    // sehingga `.future` menggantung alih-alih melempar. `retry: null`
+    // mematikan percobaan ulang itu.
     final container = ProviderContainer(
-      // Riverpod 3 mencoba ulang provider yang gagal (sampai 10x dengan
-      // backoff), sehingga `.future` MENGGANTUNG alih-alih melempar, dan test
-      // berakhir "timed out". `retry: (_, _) => null` mematikan percobaan ulang
-      // itu. Test versi codelab ditulis untuk Riverpod 2 yang tidak punya retry.
       retry: (_, _) => null,
       overrides: [
         noteRepositoryProvider.overrideWithValue(

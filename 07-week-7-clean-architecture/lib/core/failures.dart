@@ -5,6 +5,11 @@
 sealed class Failure {
   const Failure(this.message);
   final String message;
+
+  /// Supaya `'$failure'` langsung menghasilkan pesan yang layak dibaca
+  /// pengguna — UI tidak perlu membongkar tipe exception apa pun.
+  @override
+  String toString() => message;
 }
 
 /// Gagal di penyimpanan lokal (database/preferensi).

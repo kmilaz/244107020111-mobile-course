@@ -4,15 +4,11 @@ import 'package:sqflite/sqflite.dart';
 
 import 'local/db.dart';
 import 'models/post.dart';
-import 'repositories/note_repository.dart';
-
-/// Plumbing offline-first yang bukan milik repository mana pun:
-/// cache baca (`cached_posts`) dan antrean tulis (`syncNotes`).
-///
-/// Dipisahkan ke file ini (Refactoring Challenge #2) supaya `NoteRepository`
-/// tetap fokus pada CRUD dan `PostRepository` tetap menjadi sumber remote murni.
 
 /// Baca/tulis tabel `cached_posts` — separuh "baca" dari offline-first.
+///
+/// Antrean tulis (`syncNotes`) sudah pindah ke use case `SyncNotes` di domain
+/// fitur `notes`, karena aturan urutan antrean adalah aturan bisnis.
 class PostsCache {
   PostsCache({Future<Database> Function()? openDb})
     : _openDb = openDb ?? openNotesDb;
@@ -54,32 +50,4 @@ class PostsCache {
     }
     await batch.commit(noResult: true);
   }
-}
-
-/// Antrean tulis: mengirim catatan yang masih `dirty` ke "server".
-///
-/// Setiap catatan ditandai bersih **sendiri-sendiri, setelah "upload"-nya
-/// berhasil** — bukan lewat `markAllSynced()` seperti contoh codelab.
-///
-/// Alasannya: `markAllSynced()` menandai SEMUA baris dirty jadi bersih
-/// sekaligus, sehingga bila server menolak sebagian catatan, catatan yang gagal
-/// ikut dianggap terkirim dan tidak akan pernah dicoba lagi (kehilangan data
-/// senyap — badge berkata "semua tersinkron" padahal tidak).
-///
-/// Project nyata: ganti `Future.delayed` dengan request sungguhan, dan taruh
-/// `markSynced(id)` hanya pada respons 2xx.
-Future<int> syncNotes(NoteRepository repo) async {
-  final pending = await repo.fetchDirty(); // urut: perubahan terlama dulu
-  var synced = 0;
-
-  for (final note in pending) {
-    final id = note.id;
-    if (id == null) continue;
-
-    await Future.delayed(const Duration(milliseconds: 300)); // simulasi upload
-    await repo.markSynced(id); // bersihkan HANYA baris ini
-    synced++;
-  }
-
-  return synced;
 }

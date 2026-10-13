@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'pages/note_detail_page.dart';
-import 'pages/notes_page.dart';
+import 'features/notes/presentation/pages/note_detail_page.dart';
+import 'features/notes/presentation/pages/notes_page.dart';
 import 'pages/settings_page.dart';
 
 /// Router aplikasi. Dijadikan provider supaya bisa di-`ref.watch` di

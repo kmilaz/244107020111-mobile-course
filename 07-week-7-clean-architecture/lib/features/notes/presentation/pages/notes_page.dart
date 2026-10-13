@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../data/providers.dart';
+import '../../../../core/format.dart';
+import '../../../../data/providers.dart';
+import '../providers/notes_providers.dart';
 import '../widgets/note_tile.dart';
 
 class NotesPage extends ConsumerWidget {
@@ -19,7 +21,7 @@ class NotesPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Offline Notes'),
         actions: [
-          Center(child: _DirtyChip(count: dirtyCount.value ?? 0)),
+          Center(child: _DirtyChip(count: dirtyCount)),
           IconButton(
             tooltip: 'Sync',
             icon: const Icon(Icons.sync),
@@ -69,8 +71,9 @@ class NotesPage extends ConsumerWidget {
                       },
                     ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) =>
-                  Center(child: Text('Error membaca catatan: $error')),
+              // Pesan yang tampil sudah ramah pengguna: layer data mengubah
+              // exception menjadi Failure, dan Failure.toString() = message-nya.
+              error: (error, _) => Center(child: Text('$error')),
             ),
           ),
           const Divider(height: 1),
@@ -181,7 +184,7 @@ class NotesPage extends ConsumerWidget {
 }
 
 /// Ringkasan antrean sync untuk seluruh daftar.
-/// (Berbeda dari [NoteTile], yang hanya menampilkan status SATU baris.)
+/// (Berbeda dari NoteTile, yang hanya menampilkan status SATU baris.)
 class _DirtyChip extends StatelessWidget {
   const _DirtyChip({required this.count});
 
@@ -201,10 +204,7 @@ class _DirtyChip extends StatelessWidget {
 /// Menjelaskan dari mana data posts di layar berasal.
 String _postsLabel(PostsState state) {
   final cachedAt = state.lastCachedAt;
-  final stamp = cachedAt == null
-      ? ''
-      : ' ${cachedAt.day}/${cachedAt.month} '
-            '${cachedAt.hour}:${cachedAt.minute.toString().padLeft(2, '0')}';
+  final stamp = cachedAt == null ? '' : formatCacheStamp(cachedAt);
 
   final base = switch (state.source) {
     PostsSource.none => 'belum dimuat',

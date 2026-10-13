@@ -22,8 +22,6 @@ abstract class NoteRepository {
   Future<({bool ok, Failure? failure})> deleteNote(int id);
 
   /// Pintu untuk antrean sinkronisasi.
-  Future<({int count, Failure? failure})> countDirty();
-
   Future<({List<Note> notes, Failure? failure})> fetchDirty();
 
   /// Menandai SATU catatan bersih — dipanggil hanya setelah server menerimanya.

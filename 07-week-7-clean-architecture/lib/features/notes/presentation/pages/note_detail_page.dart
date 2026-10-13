@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../data/local/note.dart';
-import '../data/providers.dart';
+import '../providers/notes_providers.dart';
 import '../widgets/note_tile.dart';
 
 /// Halaman detail catatan.
 ///
-/// Membaca catatan dari repository lokal lewat `noteByIdProvider`, **bukan**
-/// dari state halaman daftar — sehingga deep link `/note/:id` tetap bekerja
+/// Membaca catatan dari repository lewat `noteByIdProvider`, **bukan** dari
+/// state halaman daftar — sehingga deep link `/note/:id` tetap bekerja
 /// walaupun halaman daftar belum pernah dibuka.
 class NoteDetailPage extends ConsumerStatefulWidget {
   const NoteDetailPage({super.key, required this.noteId});
@@ -114,8 +113,7 @@ class _NoteDetailPageState extends ConsumerState<NoteDetailPage> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) =>
-            Center(child: Text('Error membaca catatan: $error')),
+        error: (error, _) => Center(child: Text('$error')),
       ),
     );
   }
@@ -128,18 +126,14 @@ class _NoteDetailPageState extends ConsumerState<NoteDetailPage> {
     final note = ref.read(noteByIdProvider(id)).value;
     if (note == null) return;
 
+    // Aturan `updatedAt = now` dan `dirty = true` sekarang ada di use case
+    // UpdateNote, bukan di widget ini.
     await ref
         .read(notesProvider.notifier)
         .updateNote(
-          Note(
-            id: note.id,
-            title: _titleController.text.trim(),
-            body: _bodyController.text,
-            // updatedAt baru supaya aturan konflik last-write-wins benar.
-            updatedAt: DateTime.now(),
-            // Setiap perubahan lokal belum ada di server.
-            dirty: true,
-          ),
+          note: note,
+          title: _titleController.text,
+          body: _bodyController.text,
         );
 
     // Dua provider berbeda: notesProvider (daftar) dan noteByIdProvider (detail).

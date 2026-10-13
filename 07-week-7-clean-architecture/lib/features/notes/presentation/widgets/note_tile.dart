@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../core/format.dart';
-import '../data/local/note.dart';
+import '../../../../core/format.dart';
+import '../../domain/entities/note.dart';
 
 /// Satu baris catatan, dengan badge "belum tersinkron" saat note.dirty == true.
 class NoteTile extends StatelessWidget {

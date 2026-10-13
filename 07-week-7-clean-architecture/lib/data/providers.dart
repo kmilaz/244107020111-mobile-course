@@ -1,32 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'local/note.dart';
 import 'models/post.dart';
 import 'prefs.dart';
-import 'repositories/note_repository.dart';
 import 'repositories/post_repository.dart';
 import 'sync.dart';
 
-// ---------------------------------------------------------------- repository
-// Satu-satunya tempat yang menyentuh platform: sqflite, SharedPreferences, Dio.
+// CATATAN: berkas ini tinggal sebagian. Provider fitur `notes` sudah pindah ke
+// `features/notes/presentation/providers/notes_providers.dart`. Isi yang tersisa
+// (posts + preferensi) akan dipindahkan ke folder fiturnya masing-masing pada
+// Refactoring Challenge, lalu berkas ini dihapus.
 
+// ----------------------------------------------------------------- preferensi
 final prefsRepositoryProvider = Provider<PrefsRepository>(
   (ref) => PrefsRepository(),
 );
-
-final noteRepositoryProvider = Provider<NoteRepository>(
-  (ref) => NoteRepository(),
-);
-
-final postRepositoryProvider = Provider<PostRepository>(
-  (ref) => PostRepository(),
-);
-
-/// Cache `cached_posts` — dipisah dari `PostRepository` (Refactoring Challenge
-/// #2) supaya repository tetap menjadi sumber remote murni.
-final postsCacheProvider = Provider<PostsCache>((ref) => PostsCache());
-
-// ----------------------------------------------------------------- preferensi
 
 final darkModeProvider = AsyncNotifierProvider<DarkModeNotifier, bool>(
   DarkModeNotifier.new,
@@ -51,7 +38,6 @@ final lastOpenedProvider = FutureProvider<String?>(
 );
 
 // --------------------------------------------------------------- flag offline
-
 final forceOfflineProvider = NotifierProvider<ForceOfflineNotifier, bool>(
   ForceOfflineNotifier.new,
 );
@@ -63,56 +49,14 @@ class ForceOfflineNotifier extends Notifier<bool> {
   void set(bool value) => state = value;
 }
 
-// ------------------------------------------------------------ catatan (TULIS)
-
-final notesProvider = AsyncNotifierProvider<NotesNotifier, List<Note>>(
-  NotesNotifier.new,
-);
-
-class NotesNotifier extends AsyncNotifier<List<Note>> {
-  NoteRepository get _repo => ref.read(noteRepositoryProvider);
-
-  @override
-  Future<List<Note>> build() => _repo.fetchNotes();
-
-  Future<void> add({required String title, String body = ''}) async {
-    await _repo.addNote(title: title, body: body);
-    ref.invalidateSelf();
-  }
-
-  Future<void> updateNote(Note note) async {
-    await _repo.updateNote(note);
-    ref.invalidateSelf();
-  }
-
-  Future<void> remove(int id) async {
-    await _repo.deleteNote(id);
-    ref.invalidateSelf();
-  }
-
-  /// Kirim antrean, lalu muat ulang daftar.
-  Future<int> sync() async {
-    final synced = await syncNotes(_repo);
-    ref.invalidateSelf();
-    return synced;
-  }
-}
-
-/// Jumlah catatan yang belum tersinkron (badge antrean sync).
-final dirtyCountProvider = FutureProvider<int>((ref) {
-  ref.watch(notesProvider); // hitung ulang setiap daftar berubah
-  return ref.watch(noteRepositoryProvider).countDirty();
-});
-
-/// Satu catatan berdasarkan id — dipakai halaman detail.
-///
-/// Membaca dari repository, bukan dari state daftar, supaya deep link
-/// `/note/:id` tetap bekerja tanpa halaman daftar pernah dibuka.
-final noteByIdProvider = FutureProvider.family<Note?, int>(
-  (ref, id) => ref.watch(noteRepositoryProvider).getNote(id),
-);
-
 // -------------------------------------------------------------- posts (BACA)
+final postRepositoryProvider = Provider<PostRepository>(
+  (ref) => PostRepository(),
+);
+
+/// Cache `cached_posts` — dipisah dari `PostRepository` supaya repository tetap
+/// menjadi sumber remote murni.
+final postsCacheProvider = Provider<PostsCache>((ref) => PostsCache());
 
 enum PostsSource { none, cache, network }
 

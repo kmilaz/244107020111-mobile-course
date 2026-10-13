@@ -123,19 +123,6 @@ class NoteRepositoryImpl implements NoteRepository {
   }
 
   @override
-  Future<({int count, Failure? failure})> countDirty() async {
-    try {
-      final db = await _openDb();
-      final rows = await db.rawQuery(
-        'SELECT COUNT(*) AS c FROM notes WHERE dirty = 1',
-      );
-      return (count: (rows.first['c'] as num?)?.toInt() ?? 0, failure: null);
-    } catch (e) {
-      return (count: 0, failure: LocalFailure('Gagal menghitung antrean: $e'));
-    }
-  }
-
-  @override
   Future<({List<Note> notes, Failure? failure})> fetchDirty() async {
     try {
       final db = await _openDb();
