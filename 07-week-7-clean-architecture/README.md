@@ -143,17 +143,17 @@ Tiga pemeriksaan dari codelab, dijalankan setelah refactor:
 
 | # | Pemeriksaan | Hasil |
 | --- | --- | --- |
-| 1 | Presentation steril dari data mentah (`Dio(`, `openDatabase`, `getDatabasesPath`, `SharedPreferences.getInstance`, `jsonDecode`) di `features/notes/presentation` + `lib/pages` | **0 hasil** ✓ |
-| 2 | Domain steril dari framework (`import 'package:flutter\|dio\|sqflite\|firebase\|shared_preferences`) di `features/notes/domain` + `lib/core` | **0 hasil** ✓ |
+| 1 | Presentation steril dari data mentah (`Dio(`, `openDatabase`, `getDatabasesPath`, `SharedPreferences.getInstance`, `jsonDecode`) di **ketiga** `features/*/presentation` | **0 hasil** ✓ |
+| 2 | Domain steril dari framework (`import 'package:flutter\|dio\|sqflite\|firebase\|shared_preferences`) di **ketiga** `features/*/domain` + `core/` | **0 hasil** ✓ |
 | 3 | `flutter analyze` · `flutter test` | **0 issues** · **6 test lulus** ✓ |
 
-Satu baris memang muncul bila pencarian #1 diperluas dengan pola `RepositoryImpl(`:
+Satu baris memang muncul bila pencarian #1 diperluas dengan pola `Dio(`/`RepositoryImpl(`:
 
 ```dart
-// features/notes/presentation/providers/notes_providers.dart
-final noteRepositoryProvider = Provider<NoteRepository>(
-  (ref) => NoteRepositoryImpl(openNotesDb),
+// features/posts/presentation/providers/posts_providers.dart
+final postRepositoryProvider = Provider<PostRepository>(
+  (ref) => PostRepositoryImpl(createPostDio()),
 );
 ```
 
-Itu **bukan pelanggaran**: berkas ini adalah *composition root* — satu-satunya tempat implementasi konkret dipasang, dan hanya di situ `openNotesDb` boleh diserahkan. Codelab pun menaruh wiring provider di folder presentation.
+Itu **bukan pelanggaran**: berkas ini adalah *composition root* — satu-satunya tempat implementasi konkret dipasang. Hal yang sama berlaku untuk `notes_providers.dart` (`NoteRepositoryImpl(openNotesDb)`) dan `preferences_providers.dart`. Codelab pun menaruh wiring provider di folder presentation.
