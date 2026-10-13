@@ -29,3 +29,29 @@ Refactor dikerjakan di folder ini, bukan di folder Minggu 5 — folder asal dibi
 | `lib/data/api_client.dart` | data | tidak ada masalah |
 
 **Ringkasan masalahnya:** tidak ada layer `domain` sama sekali. Interface repository tidak ada, entity bercampur dengan mapping, aturan bisnis menyelinap ke widget, dan state presentasi tinggal di folder data.
+
+---
+
+### Pelanggaran yang Ditemukan
+
+Tiga pemeriksaan dari codelab, dijalankan pada `lib/pages`, `lib/widgets`, `lib/main.dart`, dan `lib/data/providers.dart`:
+
+| # | Pemeriksaan | Hasil |
+| --- | --- | --- |
+| 1 | Presentation menyentuh platform langsung (`Dio(`, `openDatabase`, `SharedPreferences.getInstance`, `jsonDecode`) | **0 hasil** ✓ |
+| 2 | Logika/pemformatan di presentation (`tryParse`, `padLeft`, `.day`, `.hour`, `.minute`) | 3 file |
+| 3 | Instansiasi manual (`Repository(`, `PostsCache(`) | 1 pelanggaran |
+
+**Temuan 1 — presentation sudah bersih dari platform.** Tidak ada widget yang memanggil Dio, SQLite, atau SharedPreferences langsung. Repository + provider dari Minggu 5 sudah menjaga batas ini. Tidak perlu tindakan.
+
+**Temuan 2 — pemformatan tanggal menempel di presentation.** `settings_page.dart` (`tryParse` + susun `dd/mm/yyyy`), `notes_page.dart` (stempel waktu label "dari cache 12/10 13:31"), dan `note_tile.dart` (`_formatTime`). Aturan tampilan tanggal disalin tiga kali, padahal seharusnya jadi fungsi murni yang bisa diuji tanpa widget → **pindahkan ke `lib/core/format.dart`**.
+
+**Temuan 3 — DI bocor di `main.dart`:**
+
+```dart
+await PrefsRepository().markOpenedNow();
+```
+
+Bootstrap membuat repository sendiri, bukan menerimanya dari provider. *Catatan jujur:* baris ini berjalan sebelum `ProviderScope` ada, jadi tidak ada container untuk membacanya — tapi tetap pelanggaran, karena tidak ada kontrak yang bisa dipalsukan saat test → **jalankan lewat provider setelah container tersedia**.
+
+`lib/data/providers.dart` **tidak** dihitung sebagai pelanggaran: di situlah DI memang seharusnya. Masalahnya hanya lokasi folder — isinya state presentasi, tapi tinggal di `data/`.
