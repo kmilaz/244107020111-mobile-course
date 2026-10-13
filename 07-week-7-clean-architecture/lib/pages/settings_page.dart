@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/format.dart';
 import '../data/providers.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -28,18 +29,11 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.history),
             title: const Text('Terakhir dibuka'),
-            subtitle: Text(_formatLastOpened(lastOpened.value)),
+            // Formatting tanggal sekarang di lib/core/format.dart (fungsi murni).
+            subtitle: Text(formatStoredTimestamp(lastOpened.value)),
           ),
         ],
       ),
     );
   }
-}
-
-String _formatLastOpened(String? raw) {
-  if (raw == null) return 'belum tercatat';
-  final parsed = DateTime.tryParse(raw);
-  if (parsed == null) return raw; // data rusak → tampilkan apa adanya
-  final m = parsed.minute.toString().padLeft(2, '0');
-  return '${parsed.day}/${parsed.month}/${parsed.year} ${parsed.hour}:$m';
 }

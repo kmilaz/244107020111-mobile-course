@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/format.dart';
 import '../data/local/note.dart';
 
 /// Satu baris catatan, dengan badge "belum tersinkron" saat note.dirty == true.
@@ -22,7 +23,9 @@ class NoteTile extends StatelessWidget {
           if (note.dirty) const SizedBox(width: 6),
           Expanded(
             child: Text(
-              note.body.isEmpty ? _formatTime(note.updatedAt) : note.body,
+              note.body.isEmpty
+                  ? formatShortDateTime(note.updatedAt)
+                  : note.body,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -61,9 +64,4 @@ class DirtyBadge extends StatelessWidget {
       ),
     );
   }
-}
-
-String _formatTime(DateTime time) {
-  final minute = time.minute.toString().padLeft(2, '0');
-  return '${time.day}/${time.month} ${time.hour}:$minute';
 }
