@@ -2,61 +2,65 @@
 
 ### Tujuan
 
-Merefactor aplikasi **Offline Notes** (project Minggu 5) menjadi **feature-first Clean Architecture**: memisahkan `presentation`, `domain`, dan `data` pada satu fitur penuh, dengan aturan dependensi **hanya mengarah ke dalam**. Tujuannya agar logika bisnis bisa diuji tanpa database, jaringan, maupun perangkat.
+Merefactor aplikasi **Offline Notes** (project Minggu 5) menjadi **feature-first Clean Architecture**: memisahkan `presentation`, `domain`, dan `data` pada setiap fitur, dengan aturan dependensi hanya mengarah ke dalam. Tujuannya agar logika bisnis bisa diuji tanpa database, jaringan, maupun perangkat.
 
-Refactor dikerjakan di folder ini, bukan di folder Minggu 5 — folder asal dibiarkan utuh sebagai pembanding *before/after*.
+Refactor dikerjakan di folder ini — folder Minggu 5 dibiarkan utuh sebagai pembanding before/after.
+
+### Fitur Utama
+
+Aplikasi catatan offline-first: catatan tetap bisa dibaca dan ditulis tanpa internet, lalu disinkronkan saat online.
+
+- Preferensi tema gelap/terang dan waktu terakhir dibuka (SharedPreferences)
+- CRUD catatan persisten (SQLite), diurutkan `updated_at` terbaru
+- Badge "belum tersinkron" per baris dan chip ringkasan antrean
+- Antrean sinkronisasi yang menandai bersih **per catatan**, setelah "server" menerimanya
+- Cache-first read untuk daftar posts, lengkap dengan label asal data
+- Toggle Force offline untuk demo deterministik
+- Halaman detail `/note/:id` dan empat state UI (loading, error, empty, success)
+
+### Stack Teknologi
+
+- Flutter 3.47.2 (Dart 3.13.2) 
+- flutter_riverpod 3.4.3 untuk state dan dependency injection
+- go_router 18.0.2 
+- sqflite 2.4.4+1 
+- shared_preferences 2.5.6 
+- dio 5.11.1 
+- flutter_test.
+
+### Cara Menjalankan
+
+```bash
+cd 07-week-7-clean-architecture
+flutter pub get
+flutter run
+```
+
+Pemeriksaan: `flutter analyze` (0 issues) dan `flutter test` (13 test).
 
 ---
 
-### Peta File ke Layer (kondisi sebelum refactor)
+## Analisis Sebelum Refactor
 
-| File | Layer saat ini | Masalah |
-| --- | --- | --- |
-| `lib/main.dart` | presentation / bootstrap | memakai `PrefsRepository()` langsung — DI bocor |
-| `lib/router.dart` | presentation | tidak ada masalah |
-| `lib/pages/notes_page.dart` | presentation | memformat tanggal di `_postsLabel()` |
-| `lib/pages/note_detail_page.dart` | presentation | membuat `Note(...)` lengkap dengan aturan `dirty: true` dan `updatedAt: now` — aturan bisnis ada di widget |
-| `lib/pages/settings_page.dart` | presentation | parsing + memformat tanggal di halaman |
-| `lib/widgets/note_tile.dart` | presentation | memformat tanggal (`_formatTime`) |
-| `lib/data/local/note.dart` | **domain + data tercampur** | entity sekaligus model: `toMap`/`fromMap` menempel di entity |
-| `lib/data/models/post.dart` | **domain + data tercampur** | `Post` sekaligus entity dan model (`toJson`/`fromJson`) |
-| `lib/data/repositories/note_repository.dart` | data | **implementasi tanpa interface** → domain tidak punya kontrak (melanggar *Dependency Inversion*) |
-| `lib/data/repositories/post_repository.dart` | data | sama: implementasi tanpa interface |
-| `lib/data/sync.dart` | **domain di dalam data** | `syncNotes()` memegang aturan bisnis (urutan antrean, penandaan per baris); `PostsCache` memang milik data |
-| `lib/data/providers.dart` | **presentation di dalam data** | DI dan seluruh notifier ditaruh di folder `data/` |
-| `lib/data/local/db.dart` | data | tidak ada masalah |
-| `lib/data/prefs.dart` | data | tidak ada masalah (belum punya kontrak interface) |
-| `lib/data/api_client.dart` | data | tidak ada masalah |
+### Peta File ke Layer
 
-**Ringkasan masalahnya:** tidak ada layer `domain` sama sekali. Interface repository tidak ada, entity bercampur dengan mapping, aturan bisnis menyelinap ke widget, dan state presentasi tinggal di folder data.
+Seluruh kode masih berada di `lib/{data, pages, widgets}` — **tidak ada layer `domain` sama sekali**.
 
----
+`lib/data/local/note.dart` dan `lib/data/models/post.dart` masing-masing adalah entity **sekaligus** model, karena `toMap`/`fromMap`/`toJson` menempel di dalamnya. `lib/data/repositories/note_repository.dart` dan `post_repository.dart` adalah implementasi **tanpa interface**, sehingga tidak ada kontrak yang bisa dipalsukan saat test. `lib/data/sync.dart` menyimpan `syncNotes()` yang justru memegang aturan bisnis (urutan antrean, penandaan per baris). Dan `lib/data/providers.dart` menampung DI beserta seluruh notifier, padahal itu state presentasi.
+
+Di sisi tampilan, aturan bisnis menyelinap ke widget: `note_detail_page.dart` membentuk `Note(...)` lengkap dengan `dirty: true` dan `updatedAt: now`, sementara `settings_page.dart`, `notes_page.dart`, dan `note_tile.dart` masing-masing menyusun format tanggal sendiri. `main.dart` membuat `PrefsRepository()` sendiri, bukan menerimanya dari provider.
+
+`lib/router.dart`, `lib/data/local/db.dart`, `lib/data/prefs.dart`, dan `lib/data/api_client.dart` tidak bermasalah.
 
 ### Pelanggaran yang Ditemukan
 
-Tiga pemeriksaan dari codelab, dijalankan pada `lib/pages`, `lib/widgets`, `lib/main.dart`, dan `lib/data/providers.dart`:
+Tiga pemeriksaan dari codelab dijalankan pada `lib/pages`, `lib/widgets`, dan `lib/main.dart`.
 
-| # | Pemeriksaan | Hasil |
-| --- | --- | --- |
-| 1 | Presentation menyentuh platform langsung (`Dio(`, `openDatabase`, `SharedPreferences.getInstance`, `jsonDecode`) | **0 hasil** ✓ |
-| 2 | Logika/pemformatan di presentation (`tryParse`, `padLeft`, `.day`, `.hour`, `.minute`) | 3 file |
-| 3 | Instansiasi manual (`Repository(`, `PostsCache(`) | 1 pelanggaran |
+**Presentation menyentuh platform langsung** — pola `Dio(`, `openDatabase`, `getDatabasesPath`, `SharedPreferences.getInstance`, `jsonDecode` memberi **0 hasil**. Repository dan provider dari Minggu 5 sudah menjaga batas ini.
 
-**Temuan 1 — presentation sudah bersih dari platform.** Tidak ada widget yang memanggil Dio, SQLite, atau SharedPreferences langsung. Repository + provider dari Minggu 5 sudah menjaga batas ini. Tidak perlu tindakan.
+**Logika dan pemformatan di presentation** — **3 berkas**: `settings_page.dart` (`tryParse` lalu menyusun `dd/mm/yyyy`), `notes_page.dart` (stempel waktu untuk label "dari cache 12/10 13:31"), dan `note_tile.dart` (`_formatTime`). Aturan tampilan tanggal disalin tiga kali, padahal seharusnya jadi fungsi murni yang bisa diuji tanpa widget.
 
-**Temuan 2 — pemformatan tanggal menempel di presentation.** `settings_page.dart` (`tryParse` + susun `dd/mm/yyyy`), `notes_page.dart` (stempel waktu label "dari cache 12/10 13:31"), dan `note_tile.dart` (`_formatTime`). Aturan tampilan tanggal disalin tiga kali, padahal seharusnya jadi fungsi murni yang bisa diuji tanpa widget → **pindahkan ke `lib/core/format.dart`**.
-
-**Temuan 3 — DI bocor di `main.dart`:**
-
-```dart
-await PrefsRepository().markOpenedNow();
-```
-
-Bootstrap membuat repository sendiri, bukan menerimanya dari provider. *Catatan jujur:* baris ini berjalan sebelum `ProviderScope` ada, jadi tidak ada container untuk membacanya — tapi tetap pelanggaran, karena tidak ada kontrak yang bisa dipalsukan saat test → **jalankan lewat provider setelah container tersedia**.
-
-`lib/data/providers.dart` **tidak** dihitung sebagai pelanggaran: di situlah DI memang seharusnya. Masalahnya hanya lokasi folder — isinya state presentasi, tapi tinggal di `data/`.
-
----
+**Instansiasi manual** — **1 pelanggaran**: `main.dart` memanggil `PrefsRepository()` langsung. Baris itu berjalan sebelum `ProviderScope` ada, jadi tidak ada container untuk membacanya — tapi tetap pelanggaran, karena tidak ada kontrak yang bisa diganti saat test.
 
 ### Struktur Target
 
@@ -64,90 +68,54 @@ Bootstrap membuat repository sendiri, bukan menerimanya dari provider. *Catatan 
 lib/
 ├── core/                    # murni Dart — tanpa Flutter, Dio, sqflite
 │   ├── failures.dart        # Failure: LocalFailure, NetworkFailure
-│   └── format.dart          # fungsi murni: format tanggal & stempel waktu
+│   └── format.dart          # fungsi murni: format tanggal
 ├── data/
-│   └── local/db.dart        # infrastruktur bersama: satu file database,
-│                            # dipakai tabel `notes` dan `cached_posts`
+│   └── local/db.dart        # infrastruktur bersama: satu file database
 ├── shared/
 │   └── providers.dart       # flag demo lintas fitur: force offline
 ├── features/
-│   ├── notes/
-│   │   ├── domain/          # entity · interface repository · 3 use case
-│   │   ├── data/            # model (mapping) · impl SQLite
-│   │   └── presentation/    # providers (DI + notifier) · pages · widgets
-│   ├── posts/
-│   │   ├── domain/          # entity · 2 interface · use case cache-first
-│   │   ├── data/            # model · impl Dio · impl cache SQLite
-│   │   └── presentation/    # providers · widget daftar posts
-│   └── preferences/
-│       ├── domain/          # interface repository preferensi
-│       ├── data/            # impl SharedPreferences
-│       └── presentation/    # providers · halaman pengaturan
+│   ├── notes/{domain, data, presentation}
+│   ├── posts/{domain, data, presentation}
+│   └── preferences/{domain, data, presentation}
 ├── main.dart
 └── router.dart
 ```
 
-**Arah dependensi:**
+Arah dependensi hanya satu: `presentation` bergantung pada `domain`, dan `data` mengimplementasikan `domain`. `domain` tidak mengimpor Flutter, Dio, sqflite, maupun shared_preferences. Fitur berkomunikasi lewat rute, bukan dengan saling mengimpor halaman.
 
-```
-presentation  ──>  domain  <──  data
-```
+### Use Case: Mana yang Layak
 
-`domain` tidak mengimpor Flutter, Dio, sqflite, maupun shared_preferences — itu yang membuatnya bisa diuji tanpa perangkat. Fitur berkomunikasi lewat rute, bukan dengan saling mengimpor halaman.
+Codelab memperingatkan *over-engineering*: use case untuk setiap CRUD satu baris hanya menambah lapisan kosong. Aturan yang dipakai di sini: **use case dibuat hanya bila ia memegang aturan.**
 
-### Use Case: mana yang layak, mana yang tidak
+Jadi ada use case untuk `AddNote` (judul tidak boleh kosong, catatan baru wajib bertanda `dirty`), `UpdateNote` (`updatedAt` diisi waktu sekarang dan `dirty` diset), `SyncNotes` (urutkan antrean dari yang terlama, tandai bersih per baris), dan `LoadPostsCacheFirst` (urutan cache → jaringan → timpa cache).
 
-Codelab memperingatkan **over-engineering**: *"Apakah AI membuat use case untuk tiap CRUD satu-baris? Itu over-engineering — cukup repository langsung ke notifier, dengan alasan tertulis."* Jadi aturannya:
+Tidak ada use case untuk `GetNotes`, `GetNoteById`, dan `DeleteNote` — ketiganya tidak punya aturan tambahan, jadi notifier memanggil repository langsung. Efeknya bukan sekadar lebih ringkas: test jadi menguji aturan yang nyata.
 
-| Operasi | Bentuk | Alasan |
-| --- | --- | --- |
-| `AddNote` | **use case** | aturan: catatan baru **wajib** bertanda `dirty` |
-| `UpdateNote` | **use case** | aturan: set `updatedAt = now` **dan** `dirty` |
-| `SyncNotes` | **use case** | aturan: urutkan antrean terlama dulu, tandai bersih **per baris** |
-| `LoadPostsCacheFirst` | **use case** | kebijakan: cache dulu → refresh di belakang → timpa cache |
-| `DeleteNote`, `GetNotes`, `GetNoteById` | **repository langsung** | tanpa aturan tambahan; use case hanya jadi lapisan kosong |
-
-> Catatan: contoh di codelab memakai `GetNotes` sebagai use case — itu tipis (satu baris meneruskan panggilan). Di sini sengaja tidak dibuat, dan alasannya dicatat. Efeknya: test menguji **aturan yang nyata** (`AddNote`, `SyncNotes`), bukan sekadar penerusan.
+> Catatan terbuka: contoh di codelab memakai `GetNotes` sebagai use case, sementara checklist verifikasinya sendiri menyebut pola itu over-engineering. Codelab tidak konsisten di titik ini; di sini keputusannya mengikuti checklist.
 
 ---
 
-### Refactor yang Dikerjakan
+## Refactor yang Dikerjakan
 
-| Dari | Ke |
-| --- | --- |
-| `data/local/note.dart` (entity + mapping) | `features/notes/domain/entities/note.dart` (murni) + `features/notes/data/models/note_model.dart` (mapping saja) |
-| `data/repositories/note_repository.dart` (implementasi konkret) | `features/notes/domain/repositories/note_repository.dart` (**interface**) + `features/notes/data/repositories/note_repository_impl.dart` (SQLite) |
-| `data/sync.dart` → `syncNotes()` | `features/notes/domain/usecases/sync_notes.dart` (aturan antrean jadi milik domain) |
-| `data/providers.dart` → provider catatan | `features/notes/presentation/providers/notes_providers.dart` (DI + notifier) |
-| `pages/notes_page.dart`, `pages/note_detail_page.dart` | `features/notes/presentation/pages/` |
-| `widgets/note_tile.dart` | `features/notes/presentation/widgets/` |
-| formatting tanggal di 3 tempat | `core/format.dart` (fungsi murni) |
-| `PrefsRepository()` di `main()` | dipanggil lewat provider (DI tidak lagi bocor) |
-| `data/models/post.dart` (entity + mapping) | `features/posts/domain/entities/post.dart` (murni) + `features/posts/data/models/post_model.dart` |
-| `data/repositories/post_repository.dart` + `PostsCache` di `data/sync.dart` | `features/posts/domain/repositories/` (**2 interface**) + `features/posts/data/repositories/` (`PostRepositoryImpl` Dio, `PostsCacheImpl` SQLite) |
-| `data/api_client.dart` | `features/posts/data/api_client.dart` |
-| `data/providers.dart` → provider posts | `features/posts/presentation/providers/posts_providers.dart`, dan UI-nya dikeluarkan dari halaman catatan menjadi `features/posts/presentation/widgets/posts_section.dart` |
-| `data/prefs.dart` + provider tema | `features/preferences/{domain,data,presentation}` (interface + impl SharedPreferences + provider) |
-| `pages/settings_page.dart` | `features/preferences/presentation/pages/settings_page.dart` |
-| flag `forceOffline` di `data/providers.dart` | `shared/providers.dart` — dipakai **dua** fitur (refresh posts dan antrean sync), jadi bukan milik salah satunya |
+Entity dipisah dari mapping: `data/local/note.dart` menjadi `features/notes/domain/entities/note.dart` (murni) dan `features/notes/data/models/note_model.dart` (satu-satunya tempat mapping). Hal yang sama dilakukan untuk `Post`.
 
-Setelah refactor, `lib/data/` hanya menyisakan **satu** berkas: `local/db.dart` (infrastruktur bersama, karena satu file database dipakai dua fitur).
+Implementasi konkret dipisah dari kontraknya: interface kini hidup di `domain/repositories/`, sedangkan `NoteRepositoryImpl` (SQLite), `PostRepositoryImpl` (Dio), dan `PostsCacheImpl` (SQLite) tinggal di `data/repositories/`.
 
-Aturan bisnis yang tadinya tersebar di widget dan repository sekarang berkumpul di use case: `AddNote` (menolak judul kosong, wajib `dirty`), `UpdateNote` (`updatedAt = now` + `dirty`), `SyncNotes` (urut antrean, tandai bersih per baris).
+Aturan bisnis naik ke domain. `syncNotes()` menjadi use case `SyncNotes`, dan cara sebuah catatan dibentuk saat ditambah atau diubah kini ditentukan `AddNote` dan `UpdateNote` — bukan oleh widget. Repository hanya menyimpan apa adanya.
 
----
+Provider catatan pindah ke `features/notes/presentation/providers/`, halaman dan widget pindah ke folder fiturnya, dan bagian posts dikeluarkan dari halaman catatan menjadi `posts_section.dart`.
+
+Formatting tanggal di tiga tempat digantikan `core/format.dart`. DI di `main.dart` diperbaiki: pencatatan waktu buka kini lewat provider.
+
+Fitur kedua dan ketiga ikut dibersihkan agar tidak ada yang tertinggal: `posts` mendapat entity, dua interface, dua implementasi, satu use case, dan widget-nya sendiri; `preferences` mendapat interface, implementasi SharedPreferences, provider, dan halaman pengaturan. Flag `forceOffline` dipindah ke `shared/providers.dart` karena ia memengaruhi dua fitur sekaligus.
+
+Setelah refactor, `lib/data/` hanya menyisakan `local/db.dart` — infrastruktur bersama, karena satu file database dipakai tabel `notes` dan `cached_posts`.
 
 ### Verifikasi Aturan Dependensi
 
-Tiga pemeriksaan dari codelab, dijalankan setelah refactor:
+Presentation steril dari data mentah di ketiga fitur: **0 hasil**. Domain steril dari framework di ketiga fitur dan `core/`: **0 hasil**. `flutter analyze` bersih (0 issues) dan `flutter test` lulus 13 test.
 
-| # | Pemeriksaan | Hasil |
-| --- | --- | --- |
-| 1 | Presentation steril dari data mentah (`Dio(`, `openDatabase`, `getDatabasesPath`, `SharedPreferences.getInstance`, `jsonDecode`) di **ketiga** `features/*/presentation` | **0 hasil** ✓ |
-| 2 | Domain steril dari framework (`import 'package:flutter\|dio\|sqflite\|firebase\|shared_preferences`) di **ketiga** `features/*/domain` + `core/` | **0 hasil** ✓ |
-| 3 | `flutter analyze` · `flutter test` | **0 issues** · **6 test lulus** ✓ |
-
-Satu baris memang muncul bila pencarian #1 diperluas dengan pola `Dio(`/`RepositoryImpl(`:
+Satu baris memang muncul bila pencarian pertama diperluas dengan pola `Dio(` atau `RepositoryImpl(`:
 
 ```dart
 // features/posts/presentation/providers/posts_providers.dart
@@ -156,4 +124,36 @@ final postRepositoryProvider = Provider<PostRepository>(
 );
 ```
 
-Itu **bukan pelanggaran**: berkas ini adalah *composition root* — satu-satunya tempat implementasi konkret dipasang. Hal yang sama berlaku untuk `notes_providers.dart` (`NoteRepositoryImpl(openNotesDb)`) dan `preferences_providers.dart`. Codelab pun menaruh wiring provider di folder presentation.
+Itu bukan pelanggaran: berkas ini adalah *composition root*, satu-satunya tempat implementasi konkret dipasang. Hal yang sama berlaku untuk `NoteRepositoryImpl(openNotesDb)` dan `PreferencesRepositoryImpl()`.
+
+---
+
+## Hasil yang Dicapai
+
+Aplikasi hasil refactor berjalan **identik** dengan sebelum refactor — itu syarat utama codelab minggu ini. Diverifikasi di emulator Android: daftar catatan, badge dirty, sync, cache-first, dan force offline semuanya bekerja.
+
+### Screenshot: Sebelum vs Sesudah
+
+**Sebelum refactor** — aplikasi dari folder Minggu 5:
+
+![Sebelum refactor](screenshots/before-daftar-catatan.png)
+
+**Sesudah refactor** — aplikasi dari folder Minggu 7:
+
+![Sesudah refactor](screenshots/after-daftar-catatan.png)
+
+Keduanya menampilkan layar yang identik: chip antrean "1 belum sync", catatan "olahraga" dengan badge "belum tersinkron", bagian Posts cache-first yang terisi, dan tombol Tambah. Yang berbeda hanya stempel waktu, karena keduanya aplikasi terpisah dengan datanya sendiri.
+
+### Refleksi
+
+**Mengapa interface repository harus tinggal di domain, bukan di data?**
+> Karena arah dependensinya. Presentation membutuhkan kontrak untuk memanggil data; kalau kontrak itu tinggal di data, domain dan presentation harus mengimpor layer data — panah ketergantungan berbalik, dan logika bisnis jadi terikat pada SQLite atau Dio. Dengan interface di domain, justru layer data yang bergantung pada domain. Itu terbukti saat test: repository palsu cukup mengimplementasikan interface, dan tidak satu pun use case perlu diubah.
+
+**Kapan use case benar-benar dibutuhkan, dan kapan repository langsung ke notifier sudah cukup?**
+> Use case layak ketika operasi itu memegang aturan — sesuatu yang harus benar terlepas dari UI mana yang memanggilnya. Di sini: `AddNote`, `UpdateNote`, `SyncNotes`, dan `LoadPostsCacheFirst`. Sebaliknya `GetNotes`, `GetNoteById`, dan `DeleteNote` tidak punya aturan apa pun, jadi use case untuk ketiganya hanya menambah lapisan kosong.
+
+**Apa biaya over-engineering bagi tim kecil, dan kapan biayanya sepadan?**
+> Setiap operasi baru melewati beberapa berkas sekaligus, dan pembaca harus melompat-lompat untuk memahami satu alur. Untuk CRUD sederhana itu memperlambat tanpa menambah keamanan. Biayanya baru sepadan ketika aturan mulai berlipat — konflik data, kebijakan cache, atau aturan yang harus konsisten di banyak tempat. Di project ini `notes` memang punya aturan seperti itu; `preferences` tidak, jadi di situ saya tidak memaksakan use case.
+
+**Bagian mana dari usulan AI yang ditolak atau disederhanakan, dan mengapa?**
+> Dua hal, keduanya tercatat di `docs/ai-challenge.md`: use case untuk setiap CRUD satu baris (ditolak — hanya jadi lapisan kosong), dan mapping `toMap`/`fromMap` di dalam entity (ditolak — entity harus bisa dipakai tanpa menyentuh storage). Selain itu saya memperbaiki satu pelanggaran yang tidak disebut AI: `main.dart` membuat repository langsung di luar provider.
